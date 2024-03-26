@@ -1,7 +1,7 @@
 # Google Cloud Text-to-Speech Script for Firebot
 
 ## Overview
-Use Google Cloud's Text-to-Speech service in Firebot to have incredible TTS quality on stream! Choose from any English (US/UK/AU/IN) WaveNet voice. With controls for Pitch and Speech Rate, you can tailor the voice to whatever you need.
+Use Google Cloud's Text-to-Speech service in Firebot to have incredible TTS quality on stream! Choose from any available Google Cloud Platform text-to-speech voice. With controls for Pitch and Speech Rate, you can tailor the voice to whatever you need.
 
 Looking to recreate the voice of A.D.A (Artificial Directory and Assistant) from Satisfactory? Choose `en-US-Wavenet-C` and adjust the Pitch to `-0.5` and Speed to `0.9`.
 
@@ -12,9 +12,12 @@ In addition to obtaining your API Key, you must also activate and enable Google 
 
 The API Key may look something like: `AITEwL55bWmT-zZeuiWF8o9EpruWtue7QUhMy05`
 
-Make sure you have your API Key handy, as you'll need it once you install the Script in Firebot.
+Make sure you have your API Key handy, as you'll need it once you install the Script in [Firebot](https://firebot.app/).
 
 ## How to use
-1. Download the latest **googleCloudTts.js** file from [Releases](https://github.com/heyaapl/firebot-script-google-cloud-tts/releases)
-2. Add the **googleCloudTts.js** as a startup script in Firebot (Settings > Advanced > Startup Scripts) and enter your Google Cloud API Key
+1. Download the latest **googleCloudTts.js** file from [Releases](https://github.com/phroggster/firebot-google-cloud-tts/releases)
+2. Add the **googleCloudTts.js** as a startup script in [Firebot](https://firebot.app/) (Settings > Advanced > Startup Scripts) and enter your Google Cloud API Key
 3. Restart Firebot and enjoy! You'll see a new Effect called **Google Cloud Text-to-Speech**!
+
+## History
+This is based largely on work done by [Chuck Kostalnick](https://github.com/heyaapl/firebot-script-google-cloud-tts), and the entire [Crowbar Tools team](https://github.com/crowbartools). Please consider [supporting](https://opencollective.com/crowbartools) them, or contributing to their projects.

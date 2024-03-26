@@ -1,41 +1,32 @@
-import { Firebot } from "firebot-custom-scripts-types";
-import { buildGoogleTtsEffectType } from "./google-tts-effect";
+import { Firebot } from "@crowbartools/firebot-custom-scripts-types";
+
+import { initGoogleCloudService } from "./google-cloud-service";
+import { initGoogleCloudPlatformIntegration } from "./google-integration";
+import { initGoogleTtsEffectType } from "./google-tts-effect";
 import { initLogger } from "./logger";
 
-interface Params {
-  googleCloudAPIKey: string
-}
-
-const script: Firebot.CustomScript<Params> = {
-  getScriptManifest: () => {
-    return {
-      name: "Google Cloud TTS Effect",
-      description: "Adds the Google Cloud TTS effect",
-      author: "heyaapl",
-      version: "1.2",
-      firebotVersion: "5",
-      startupOnly: true,
-    };
-  },
-  getDefaultParameters: () => {
-    return {
-      googleCloudAPIKey: {
-        type: "string",
-        description: "Google Cloud API Key (Restart Firebot After Setting)",
-        secondaryDescription: "You must have a Google Cloud API Key & Cloud Text-to-Speech Enabled for this to work. Follow the steps here to get started: https://github.com/heyaapl/firebot-script-google-cloud-tts#readme",
-        default: ""
-      }
-    };
-  },
-  run: (runRequest) => {
-    const { effectManager, frontendCommunicator, logger } = runRequest.modules;
-    const fs = (runRequest.modules as any).fs;
-    const path = (runRequest.modules as any).path;
-    initLogger(logger);
-    effectManager.registerEffect(
-      buildGoogleTtsEffectType(frontendCommunicator, fs, path, runRequest.parameters.googleCloudAPIKey)
-    );
-  },
+const script: Firebot.CustomScript = {
+    getScriptManifest: () => {
+        return {
+            name: "Google Cloud TTS Effect",
+            description: "Adds the Google Cloud TTS effect",
+            author: "phroggie, heyaapl",
+            version: "0.2",
+            firebotVersion: "5",
+            startupOnly: true,
+            website: "https://github.com/phroggster/firebot-google-cloud-tts"
+        };
+    },
+    getDefaultParameters: () => {
+        return [];
+    },
+    run: (runRequest) => {
+        // see src/backend/common/handlers/custom-scripts/custom-script-helpers.js:buildModules() for the full exported modules list.
+        initLogger(runRequest.modules.logger);
+        initGoogleCloudPlatformIntegration(runRequest.modules);
+        initGoogleCloudService(runRequest.modules);
+        initGoogleTtsEffectType(runRequest.modules, runRequest.firebot.settings);
+    },
 };
 
 export default script;
