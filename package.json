@@ -1,7 +1,7 @@
 {
   "name": "google-cloud-tts",
   "scriptOutputName": "googleCloudTts",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Adds Google Cloud Services integration, and a higher-quality TTS effect utilizing it to Firebot",
   "main": "",
   "scripts": {
