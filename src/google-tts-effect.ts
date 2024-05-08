@@ -904,7 +904,7 @@ export function initGoogleTtsEffectType(
 
             // Step 4: wait for it to finish playing, then remove the audio file
             try {
-                const waitPromise = wait(durationInMils * 5).then(async function () {
+                const waitPromise = wait(durationInMils).then(async function () {
                     await fs.unlink(filePath, (_) => {
                         logger.debug(`google-tts-effect: deleting audio file "${filePath}" as it has been completed`);
                     });
