@@ -148,7 +148,7 @@ export function initGoogleTtsEffectType(
                     <h4>Rate</h4>
                     <div class="volume-slider-wrapper">
                         <i class="fal fa-backward"></i>
-                        <rzslider rz-slider-model="effect.effectRate" rz-slider-options="{floor: -0.25, ceil: 4, precision: 2, step: 0.25}"></rzslider>
+                        <rzslider rz-slider-model="effect.effectRate" rz-slider-options="{floor: -0.25, ceil: 4, precision: 2, step: 0.1}"></rzslider>
                         <i class="fal fa-forward"></i>
                     </div>
                 </div>
