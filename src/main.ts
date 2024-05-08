@@ -4,6 +4,7 @@ import { initGoogleCloudService } from "./google-cloud-service";
 import { initGoogleCloudPlatformIntegration } from "./google-integration";
 import { initGoogleTtsEffectType } from "./google-tts-effect";
 import { initLogger } from "./logger";
+import { setTmpDir } from "./utils";
 
 const script: Firebot.CustomScript = {
     getScriptManifest: () => {
@@ -22,6 +23,9 @@ const script: Firebot.CustomScript = {
     },
     run: (runRequest) => {
         // see src/backend/common/handlers/custom-scripts/custom-script-helpers.js:buildModules() for the full exported modules list.
+        const path = runRequest.modules.path;
+        setTmpDir(path.join(SCRIPTS_DIR, '..', '..', '..', '..', 'tmp', 'google-tts'));
+
         initLogger(runRequest.modules.logger);
         initGoogleCloudPlatformIntegration(runRequest.modules);
         initGoogleCloudService(runRequest.modules);

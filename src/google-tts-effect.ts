@@ -6,7 +6,7 @@ import { v4 as uuid } from "uuid";
 import { consts } from "./consts";
 import { googleCloudService } from "./google-cloud-service";
 import { GoogleTtsEffectModel, VoiceInfo } from "./types";
-import { wait } from "./utils";
+import { tmpDir, wait } from "./utils";
 
 /** The scope datamodel for a Google Cloud Platform Text-To-Speech voice effect for Firebot. */
 interface Scope extends EffectScope<GoogleTtsEffectModel> {
@@ -808,8 +808,19 @@ export function initGoogleTtsEffectType(
 
             logger.debug("google-tts-effect.onTriggerEvent");
 
+            try {
+                if (!fs.existsSync(tmpDir)) {
+                    logger.info(`google-tts-effect.onTriggerEvent: Attempting to create temporary directory at "${tmpDir}"`);
+                    fs.mkdirSync(tmpDir, { recursive: true });
+                }
+            }
+            catch (err) {
+                logger.error("google-tts-effect.onTriggerEvent: Failed to create temporary directory for audio files", err);
+                return true;
+            }
+
             // Step 1: synthesize audio and write it to a file.
-            const filePath = path.join(process.cwd(), `tts${uuid()}.mp3`);
+            const filePath = path.join(tmpDir, `tts${uuid()}.mp3`);
             try {
                 const audioContent = await googleCloudService.synthesizeText(effect.text,
                     {
