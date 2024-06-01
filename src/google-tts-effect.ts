@@ -140,7 +140,7 @@ export function initGoogleTtsEffectType(
                     <h4>Pitch</h4>
                     <div class="volume-slider-wrapper">
                         <i class="fal fa-chevron-double-down"></i>
-                        <rzslider rz-slider-model="effect.effectPitch" rz-slider-options="{floor: -20.0, ceil: 20.0, precision: 1, step: 0.1}"></rzslider>
+                        <rzslider rz-slider-model="effect.effectPitch" rz-slider-options="{floor: -20.0, ceil: 20.0, precision: 1, step: 0.05}"></rzslider>
                         <i class="fal fa-chevron-double-up"></i>
                     </div>
                 </div>
@@ -148,7 +148,7 @@ export function initGoogleTtsEffectType(
                     <h4>Rate</h4>
                     <div class="volume-slider-wrapper">
                         <i class="fal fa-backward"></i>
-                        <rzslider rz-slider-model="effect.effectRate" rz-slider-options="{floor: -0.25, ceil: 4, precision: 2, step: 0.1}"></rzslider>
+                        <rzslider rz-slider-model="effect.effectRate" rz-slider-options="{floor: -0.25, ceil: 4, precision: 2, step: 0.05}"></rzslider>
                         <i class="fal fa-forward"></i>
                     </div>
                 </div>
@@ -156,7 +156,7 @@ export function initGoogleTtsEffectType(
                     <h4>Volume</h4>
                     <div class="volume-slider-wrapper">
                         <i class="fal fa-volume-down volume-low"></i>
-                        <rzslider rz-slider-model="effect.effectVolume" rz-slider-options="{floor: -96, ceil: 16, precision: 1, step: 0.1}"></rzslider>
+                        <rzslider rz-slider-model="effect.effectVolume" rz-slider-options="{floor: -96, ceil: 16, precision: 1, step: 0.05}"></rzslider>
                         <i class="fal fa-volume-up volume-high"></i>
                     </div>
                 </div>

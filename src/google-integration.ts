@@ -1,4 +1,5 @@
-import { Integration, IntegrationController, IntegrationData, IntegrationEvents, ScriptModules } from "@crowbartools/firebot-custom-scripts-types";
+import { Integration, IntegrationController, IntegrationDefinition, IntegrationData, IntegrationEvents, ScriptModules } from "@crowbartools/firebot-custom-scripts-types";
+import { FirebotParams } from "@crowbartools/firebot-custom-scripts-types/types/modules/firebot-parameters";
 import { TypedEmitter } from "tiny-typed-emitter";
 
 import { consts } from "./consts";
@@ -45,20 +46,21 @@ export type IntegrationSettings = {
 };
 */
 
-const integrationDefinition = {
+const integrationDefinition: IntegrationDefinition<FirebotParams> = {
     id: consts.INTEGRATION_ID,
     name: "Google Cloud Platform",
     description: "Google Cloud Platform integration, for use with the Text to Speech API",
     connectionToggle: true,
     linkType: "id",
     idDetails: {
-        steps:
-`1. Navigate to the Google Cloud Platform Credentials page for your project (https://console.cloud.google.com/apis/credentials).
-
-2. Either create a new API Key by clicking "+ CREATE CREDENTIALS" at the top, or click "SHOW KEY" on a pre-existing API Key.
-
-3. Paste your API Key below.`
+        steps: `
+1. Visit the [Google Cloud Platform Credentials](https://console.cloud.google.com/apis/credentials) page for your project.
+2. Either:
+  - Click <ins>SHOW KEY</ins> on a pre-existing API Key, ***OR*** . . .
+  - Click <ins>+ CREATE CREDENTIALS</ins> at the top to create a new key.
+3. Paste the API Key below.`
     },
+    settingCategories: null
 };
 
 class IntegrationEventEmitter extends TypedEmitter<IntegrationEvents> { };

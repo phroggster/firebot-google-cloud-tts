@@ -1,8 +1,13 @@
 import { IntegrationWithUnknowns, ScriptModules } from "@crowbartools/firebot-custom-scripts-types";
 import axios from "axios";
+import { AxiosResponse } from "axios";
 
 import { logger } from "./logger";
 import { EffectParams, GoogleCloud, VoiceInfo, VoiceSelectionParams } from "./types";
+
+type SynthesizeTextResponse = {
+    audioContent: string;
+}
 
 class GoogleCloudService implements GoogleCloud {
     constructor(
@@ -88,11 +93,6 @@ class GoogleCloudService implements GoogleCloud {
     }
 
     async synthesizeSsml(ssmlToSynthesize: string, voiceParams: VoiceSelectionParams, effectParams?: EffectParams): Promise<string | undefined> {
-        type SynthesizeTextResponse = {
-            audioContent: string;
-        }
-
-        logger.debug(`google-cloud-service.synthesizeSsml: received request: ssmlToSynth: ${ssmlToSynthesize}, voiceParams: ${voiceParams}, effectParams: ${effectParams}`);
         const gcpIntegration = this.integrationManager.getIntegrationById("google-cloud-key");
         const apiKey = this._getApiKey(gcpIntegration);
         if (apiKey === null) {
@@ -104,36 +104,40 @@ class GoogleCloudService implements GoogleCloud {
             effectParams.effects = [];
         }
 
+        logger.debug(`google-cloud-service.synthesizeSsml: received synthesizeSsml request for "${ssmlToSynthesize}"`);
         const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
-        const response = await axios.post<SynthesizeTextResponse>(url, {
-            input: {
-                ssml: ssmlToSynthesize
-            },
-            voice: {
-                languageCode: voiceParams.language,
-                name: voiceParams.name
-            },
-            audioConfig: {
-                audioEncoding: "MP3",
-                pitch: effectParams?.pitch ?? 0.0,
-                speakingRate: effectParams?.rate ?? 1.0,
-                volumeGainDb: effectParams?.volume ?? 0.0,
-                effectsProfileId: effectParams?.effects ?? []
+        let response: AxiosResponse<SynthesizeTextResponse>;
+        try {
+            response = await axios.post<SynthesizeTextResponse>(url, {
+                input: {
+                    ssml: ssmlToSynthesize
+                },
+                voice: {
+                    languageCode: voiceParams.language,
+                    name: voiceParams.name
+                },
+                audioConfig: {
+                    audioEncoding: "MP3",
+                    pitch: effectParams?.pitch ?? 0.0,
+                    speakingRate: effectParams?.rate ?? 1.0,
+                    volumeGainDb: effectParams?.volume ?? 0.0,
+                    effectsProfileId: effectParams?.effects ?? []
+                }
+            });
+
+            if (response.status < 200 || response.status >= 300 || !response.data?.audioContent) {
+                const dataText = response.data?.audioContent ? 'data' : 'no data';
+                logger.warn(`google-cloud-service.synthesizeSsml: received ${dataText}, code ${response.status}: ${response.statusText}`, response);
             }
-        }).catch(err => {
-            logger.error("google-cloud-service.synthesizeSsml: Failed to request Google Cloud text-to-speech ssml synthesis", err);
-            throw err;
-        });
+        }
+        catch (err) {
+            logger.error("google-cloud-service.synthesizeSsml: error synthesizing ssml", err);
+        }
 
         return response?.data?.audioContent;
     }
 
     async synthesizeText(textToSynthesize: string, voiceParams: VoiceSelectionParams, effectParams?: EffectParams): Promise<string | undefined> {
-        type SynthesizeTextResponse = {
-            audioContent: string;
-        }
-
-        logger.debug("google-cloud-service.synthesizeText: received synthesizeText request...");
         const gcpIntegration = this.integrationManager.getIntegrationById("google-cloud-key");
         const apiKey = this._getApiKey(gcpIntegration);
         if (apiKey == null || apiKey.length < 20) {
@@ -146,8 +150,9 @@ class GoogleCloudService implements GoogleCloud {
             effectParams.effects = [];
         }
 
+        logger.debug(`google-cloud-service.synthesizeText: received synthesizeText request for "${textToSynthesize}"`);
         const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
-        let response = undefined;
+        let response: AxiosResponse<SynthesizeTextResponse>;
         try {
             response = await axios.post<SynthesizeTextResponse>(url, {
                 input: {
@@ -165,9 +170,14 @@ class GoogleCloudService implements GoogleCloud {
                     effectsProfileId: effectParams?.effects ?? []
                 }
             });
+
+            if (response.status < 200 || response.status >= 300 || !response.data?.audioContent) {
+                const dataText = response.data?.audioContent ? 'data' : 'no data';
+                logger.warn(`google-cloud-service.synthesizeText: received ${dataText}, code ${response.status}: ${response.statusText}`, response);
+            }
         }
         catch (err) {
-            logger.error("google-cloud-service.synthesizeText: unable to sythesize text", err);
+            logger.error("google-cloud-service.synthesizeText: error synthesizing text", err);
             return;
         }
 

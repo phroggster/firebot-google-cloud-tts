@@ -12,7 +12,7 @@ const script: Firebot.CustomScript = {
             name: "Google Cloud TTS Effect",
             description: "Adds the Google Cloud TTS effect",
             author: "phroggie, heyaapl",
-            version: "0.2",
+            version: "0.2.0",
             firebotVersion: "5",
             startupOnly: true,
             website: "https://github.com/phroggster/firebot-google-cloud-tts"
