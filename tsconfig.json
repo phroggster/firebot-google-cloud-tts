@@ -3,12 +3,18 @@
     "outDir": "./dist/",
     "target": "ES6",
     "module": "CommonJS",
-    "allowSyntheticDefaultImports": true,
-    "noImplicitAny": true,
-    "sourceMap": true,
     "moduleResolution": "node",
+    "allowJs": true,
+    "allowSyntheticDefaultImports": true,
+    "downlevelIteration": true,
     "experimentalDecorators": true,
-    "downlevelIteration": true
+    "esModuleInterop": true,
+    "noImplicitAny": true,
+    "resolveJsonModule": true,
+    "sourceMap": true
   },
-  "include": ["./src/**/*"]
+  "include": [
+    "./src/**/*",
+    "./tests/**/*"
+  ]
 }
