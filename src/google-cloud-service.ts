@@ -163,11 +163,11 @@ class GoogleCloudService implements GoogleCloud {
                     name: voiceParams.name
                 },
                 audioConfig: {
-                    audioEncoding: "MP3",
-                    pitch: effectParams?.pitch ?? 0.0,
-                    speakingRate: effectParams?.rate ?? 1.0,
-                    volumeGainDb: effectParams?.volume ?? 0.0,
-                    effectsProfileId: effectParams?.effects ?? []
+                    audioEncoding: "LINEAR16",
+                    // pitch: effectParams?.pitch ?? 0.0,
+                    // speakingRate: effectParams?.rate ?? 1.0,
+                    // volumeGainDb: effectParams?.volume ?? 0.0
+                    // effectsProfileId: effectParams?.effects ?? []
                 }
             });
 

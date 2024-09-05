@@ -135,6 +135,7 @@ export function initGoogleTtsEffectType(
                 --!>
             </eos-container>
 
+            <!--
             <eos-container header="Generator Effects" pad-top="true">
                 <div uib-tooltip="Pitch effects are not usable with Journey voices" aria-label="Pitch effects are not usable with Journey voices">
                     <h4>Pitch</h4>
@@ -164,6 +165,7 @@ export function initGoogleTtsEffectType(
                     <button class="btn btn-default" ng-click="resetGeneratorSettings()">Reset to Defaults</button>
                 </div>
             </eos-container>
+            --!>
 
             <eos-container header="Output Settings" pad-top="true">
                 <eos-audio-output-device effect="effect"></eos-audio-output-device>
@@ -818,7 +820,7 @@ export function initGoogleTtsEffectType(
             }
 
             // Step 1: synthesize audio and write it to a file.
-            const filePath = path.join(tmpDir, `tts${uuid()}.mp3`);
+            const filePath = path.join(tmpDir, `tts${uuid()}.wav`);
             try {
                 const audioContent = await googleCloudService.synthesizeText(effect.text,
                     {

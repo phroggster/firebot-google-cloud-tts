@@ -20,11 +20,11 @@
   ],
   "license": "GPL-3.0-or-later",
   "devDependencies": {
-    "@crowbartools/firebot-custom-scripts-types": "^5.60.1",
+    "@crowbartools/firebot-custom-scripts-types": "^5.63.0",
     "@eslint/js": "^9.5.0",
     "@types/fs-extra": "^11.0.4",
     "@types/jest": "^29.5.12",
-    "@types/node": "^18.18.2",
+    "@types/node": "^20.14.0",
     "@types/semver": "^7.5.8",
     "@types/uuid": "^10.0.0",
     "eslint": "^8.57.0",
@@ -39,13 +39,13 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
-    "axios": "^1.7.2",
+    "axios": "^0.21.1",
     "semver": "^7.6.2",
     "tiny-typed-emitter": "^2.1.0",
-    "uuid": "^10.0.0"
+    "uuid": "^3.3.3"
   },
   "volta": {
-    "node": "18.18.2",
-    "npm": "10.2.4"
+    "node": "20.14.0",
+    "npm": "10.8.1"
   }
 }
