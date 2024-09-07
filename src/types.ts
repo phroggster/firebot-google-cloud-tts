@@ -1,3 +1,9 @@
+/** Options available for the script in its entirety. */
+export interface ScriptParams extends Record<string, any> {
+    /** Whether or not automatic update checks will be conducted during script startup. */
+    updateChecks: boolean;
+};
+
 /** Options for a Google Cloud Text-To-Speech Firebot effect instance. */
 export interface GoogleTtsEffectModel {
     /** The text to be spoken aloud. (input: text) */
@@ -34,7 +40,7 @@ export interface GoogleTtsEffectModel {
     overlayInstance?: any;
     /** The volume to play the resulting sample at. Default 5.0, range 1.0 to 10.0. */
     outputVolume?: number;
-}
+};
 
 /** An object representing audio effects applicable to a speech synthesis request. */
 export type EffectParams = {
@@ -59,9 +65,9 @@ export type EffectParams = {
 /** An object representing information about a Google Text-to-Speech voice. */
 export type VoiceInfo = {
     /** The gender associated with the voice. */
-    gender: string;
+    gend: string;
     /** The human-readable language and locale that the voice utilizes. */
-    language: string;
+    loc: string;
     /** The unique name identifying the voice. */
     name: string;
 };
@@ -76,7 +82,7 @@ export type VoiceSelectionParams = {
      * @see GoogleTtsEffectModel.voice
      */
     name: string;
-}
+};
 
 /** Services and APIs available from the Google Cloud Platform. */
 export type GoogleCloud = {

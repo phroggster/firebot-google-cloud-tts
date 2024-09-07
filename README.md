@@ -21,6 +21,31 @@ In addition to obtaining your API Key, you must also activate and enable Google 
 5. Enable the connection to Google Cloud Platform by ensuring the On/Off button in the bottom left is yellow or green.
 
 ## History
-This is based largely on work done by [Chuck Kostalnick (heyaapl)](https://github.com/heyaapl/firebot-script-google-cloud-tts), and the entire [Crowbar Tools team](https://github.com/crowbartools). Please consider [supporting](https://opencollective.com/crowbartools) them, or contributing to their projects.
+This is based largely on work done by [Chuck Kostalnick (heyaapl)](https://github.com/heyaapl/firebot-script-google-cloud-tts), and the entire [Crowbar Tools team](https://github.com/crowbartools). Please consider [supporting](https://opencollective.com/crowbartools) them financially, and intellectually contributing to their projects.
 
 This version differs from heyaapl's original with support for all of the Google Cloud TTS voices, additional voice information, support for output to overlay(s), and adjustable output volume control. It also utilizes the integrations system of Firebot to allow for easy enabling or disabling of the connection through a quick-action toggle, without needing to toggle individual events or effects.
+
+## Future
+The following list of features are planned to be implemented, and the public release of version 1.0 will be unveiled upon implementation of the majority of this list being checked off (in no particular order):
+- [x] All public voices available for use in every supported language.
+- [x] Instanced overlay audio output support.
+- [ ] Variable expansion for voice selection.
+  - This will unlock advanced user metadata scenarios, e.g. user A with voice A, user B with voice B, etc.
+  - Probably use a script-wide fallback voice if voice name/language is invalid, but that's all TBD.
+- [ ] Friendly auto-update checks (unless Firebot gets this completed first!).
+  - Presently inhibited by a lack of ability to make external links clickable.
+  - Will likely start out with a notification that can be manually copy+pasted into a browser, or similar.
+- [ ] Voice synthesis audio effects (partially done, but disabled after Journey updates broke it around Aug. 2024).
+- [ ] Opt-in SSML markup support.
+- [ ] Automated compile-time voice list downloads.
+  - I'm presently using the in-tree LibreOffice Spreadsheet file (gtts-voiceslist-converter.ods) to transpose these manually from their static HTML (that iteself doesn't get updated very often!).
+- [ ] Better filtering in voice selection UI.
+  - Technology, pricing category, gender, language, locale each need unique filters, or *something*.
+  - A massive sortable flat list of voices just isn't good enough.
+  - Could probably default to only showing the user's locale/lang for a start.
+- [ ] Manual ***and*** automated run-time voice list updates.
+- [ ] GCloud OAuth integration. 🤢
+- [ ] Integrated testing of audio effects and audio encoding/format support for *every* voice.
+  - e.g. Journey voices apparantly lost support for MP3/32k encoding out of the blue, and MP3/64k. WTF.
+  - Journey also doesn't support synthesis effects nor audio profiles.
+- [ ] Translations sure would be nice...

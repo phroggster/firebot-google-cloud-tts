@@ -3,7 +3,7 @@
     "outDir": "./dist/",
     "target": "ES6",
     "module": "CommonJS",
-    "moduleResolution": "node",
+    "moduleResolution": "NodeNext",
     "allowJs": true,
     "allowSyntheticDefaultImports": true,
     "downlevelIteration": true,
