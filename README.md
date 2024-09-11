@@ -3,10 +3,9 @@
 ## Overview
 Use Google Cloud's Text-to-Speech service in Firebot to have incredible TTS quality on stream! Choose from any available Google Cloud Platform text-to-speech voice. With controls for Pitch and Speech Rate, you can tailor the voice to whatever you need.
 
-Technically this is a paid service. However, each month Google will give you 1,000,000 free characters of TTS, in each of three pricing categories, up to a total of three million characters before any charges (terms *may* vary by region). See their [Text-to-Speech pricing](https://cloud.google.com/text-to-speech/pricing) page for more information. Be advised, the following note exists on the pricing page at time of writing:
-> Journey voices are experimental and are currently not billed.
+Technically this is a paid service. However, each month Google will give you between 100k to 4M free characters of TTS, in each of six pricing categories (terms *may* vary by region). See their [Text-to-Speech pricing](https://cloud.google.com/text-to-speech/pricing) page for more information. Be advised, the Journey voices are no longer marked as experimental, and will apparantly be getting billed out again.
 
-Looking to recreate the voice of A.D.A (Artificial Directory and Assistant) from Satisfactory? Choose `en-US-Wavenet-C` and adjust the Pitch to `-0.5` and Speed to `0.9`.
+Looking to recreate the voice of A.D.A (Artificial Directory and Assistant) from Satisfactory? Choose `en-US-Wavenet-C` and adjust the Pitch to `-0.5` and Speed to `0.9` (Note: voice effects were disabled in the most recent update. They should return soon).
 
 ## Prerequisites
 You must have a Google Cloud Account, and a [Google Cloud API Key](https://cloud.google.com/docs/authentication/api-keys#creating_an_api_key) to use this script. The API Key *may* look something like: `AITEwL55bWmT-zZeuiWF8o9EpruWtue7QUhMy05`. Make sure you have your API Key handy, as you'll need it once you install the Script in [Firebot](https://firebot.app/). 
@@ -49,3 +48,8 @@ The following list of features are planned to be implemented, and the public rel
   - e.g. Journey voices apparantly lost support for MP3/32k encoding out of the blue, and MP3/64k. WTF.
   - Journey also doesn't support synthesis effects nor audio profiles.
 - [ ] Translations sure would be nice...
+
+## Disclaimers
+The usage of any brand names, service marks, and/or trademarks, properly registered or otherwise, does not imply a recommendation of those brands, products, nor services. This author has **no affiliation** with any brands, companies, marks, products, or services mentioned.
+
+Google® ([78828042](https://tsdr.uspto.gov/#caseNumber=78828042&caseSearchType=US_APPLICATION&caseType=DEFAULT&searchType=statusSearch)) and Google Cloud™℠ ([~~87652070~~](https://tsdr.uspto.gov/#caseNumber=87652070&caseSearchType=US_APPLICATION&caseType=DEFAULT&searchType=statusSearch) *invalidated*) are and were registered marks owned by Google LLC, Delaware, USA.
