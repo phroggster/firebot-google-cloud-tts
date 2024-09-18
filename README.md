@@ -28,14 +28,14 @@ This version differs from heyaapl's original with support for all of the Google 
 The following list of features are planned to be implemented, and the public release of version 1.0 will be unveiled upon implementation of the majority of this list being checked off (in no particular order):
 - [x] All public voices available for use in every supported language.
 - [x] Instanced overlay audio output support.
+- [ ] Opt-in SSML markup support (almost done).
+- [ ] Voice synthesis audio effects (almost done).
 - [ ] Variable expansion for voice selection.
   - This will unlock advanced user metadata scenarios, e.g. user A with voice A, user B with voice B, etc.
-  - Probably use a script-wide fallback voice if voice name/language is invalid, but that's all TBD.
+  - Probably need some form of fallback voice if voice name/language is invalid, but that's all TBD.
 - [ ] Friendly auto-update checks (unless Firebot gets this completed first!).
   - Presently inhibited by a lack of ability to make external links clickable.
   - Will likely start out with a notification that can be manually copy+pasted into a browser, or similar.
-- [ ] Voice synthesis audio effects (partially done, but disabled after Journey updates broke it around Aug. 2024).
-- [ ] Opt-in SSML markup support.
 - [ ] Automated compile-time voice list downloads.
   - I'm presently using the in-tree LibreOffice Spreadsheet file (gtts-voiceslist-converter.ods) to transpose these manually from their static HTML (that iteself doesn't get updated very often!).
 - [ ] Better filtering in voice selection UI.
@@ -48,6 +48,10 @@ The following list of features are planned to be implemented, and the public rel
   - e.g. Journey voices apparantly lost support for MP3/32k encoding out of the blue, and MP3/64k. WTF.
   - Journey also doesn't support synthesis effects nor audio profiles.
 - [ ] Translations sure would be nice...
+- [ ] OAuth and automated GCloud credential protection updates.
+  - [ApiKey RTFM](https://cloud.google.com/docs/authentication/api-keys#api_key_restrictions)
+  - ApiKey can be locked down by IP addresses, or by http referer [sic].
+  - OAuth can specify authorized origins (http referer [sic]?), and authorized redirects. Both will need to be addressed.
 
 ## Disclaimers
 The usage of any brand names, service marks, and/or trademarks, properly registered or otherwise, does not imply a recommendation of those brands, products, nor services. This author has **no affiliation** with any brands, companies, marks, products, or services mentioned.

@@ -2,13 +2,13 @@
   "compilerOptions": {
     "outDir": "./dist/",
     "target": "ES6",
-    "module": "CommonJS",
+    "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "allowJs": true,
     "allowSyntheticDefaultImports": true,
     "downlevelIteration": true,
-    "experimentalDecorators": true,
     "esModuleInterop": true,
+    "experimentalDecorators": true,
     "noImplicitAny": true,
     "resolveJsonModule": true,
     "sourceMap": true

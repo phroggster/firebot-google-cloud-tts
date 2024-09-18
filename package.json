@@ -1,8 +1,27 @@
 {
   "name": "google-cloud-tts-revised",
-  "scriptOutputName": "googleCloudTtsRevised",
-  "version": "0.3.2",
-  "description": "Adds Google Cloud Services integration, and a higher-quality TTS effect utilizing it to Firebot",
+  "author": "phroggie",
+  "description": "Adds high-quality Text-To-Speech synthesis using the Google Cloud Platform in to Firebot",
+  "license": "GPL-3.0-or-later",
+  "scriptOutputName": "googleCloudTtsRevisedFirebotPlugin",
+  "version": "0.4.0-dev",
+  "bugs": "https://github.com/phroggster/firebot-google-cloud-tts/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/phroggster/firebot-google-cloud-tts.git"
+  },
+  "contributors": [
+    "heyappl",
+    "ebiggz",
+    "dennisrijsdijk"
+  ],
+  "keywords": [
+    "firebot-plugin",
+    "firebot-script",
+    "google-cloud-platform",
+    "google-cloud-tts",
+    "text-to-speech"
+  ],
   "main": "",
   "scripts": {
     "build": "webpack",
@@ -12,13 +31,6 @@
     "lint:fix": "eslint --fix src/ tests/",
     "test": "jest"
   },
-  "author": "phroggie",
-  "contributors": [
-    "heyappl",
-    "ebiggz",
-    "dennisrijsdijk"
-  ],
-  "license": "GPL-3.0-or-later",
   "devDependencies": {
     "@crowbartools/firebot-custom-scripts-types": "^5.63.0",
     "@eslint/js": "^9.5.0",

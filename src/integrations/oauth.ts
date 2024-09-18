@@ -1,9 +1,13 @@
-import { Integration, IntegrationController, IntegrationDefinition, IntegrationData, IntegrationEvents, ScriptModules } from "@crowbartools/firebot-custom-scripts-types";
-import { FirebotParams } from "@crowbartools/firebot-custom-scripts-types/types/modules/firebot-parameters";
-import { TypedEmitter } from "tiny-typed-emitter";
+//import { Integration, IntegrationController, IntegrationDefinition, IntegrationData, IntegrationEvents, ScriptModules } from "@crowbartools/firebot-custom-scripts-types";
+//import { FirebotParams } from "@crowbartools/firebot-custom-scripts-types/types/modules/firebot-parameters";
+//import { TypedEmitter } from "tiny-typed-emitter";
 
-import { consts } from "./consts";
-import { logger } from "./logger";
+//import consts from "./consts";
+//import { ContextLogger } from "../context-logger";
+
+// const logger = new ContextLogger("integrations.ouath");
+
+// TODO: this is the old integration, and it needs to be updated to use oauth
 
 // TODO: replace/enhance this with OAuth (linkType: "auth") once flow endpoints can be split over differing servers.
 // As-is, `{ auth: { authorizePath, tokenPath } }` rely on appending to the same `tokenHost`, while Google Cloud needs
@@ -44,10 +48,9 @@ export type IntegrationSettings = {
         autoConnect: boolean
     },
 };
-*/
 
 const integrationDefinition: IntegrationDefinition<FirebotParams> = {
-    id: consts.INTEGRATION_ID,
+    id: consts.APIKEY_INTEGRATION_ID,
     name: "Google Cloud Platform",
     description: "Google Cloud Platform integration, for use with the Text to Speech API",
     connectionToggle: true,
@@ -82,7 +85,7 @@ class GoogleIntegration
         );
     }
 
-    private _checkConfig(integrationData: IntegrationData): boolean { 
+    private _checkConfig(integrationData: IntegrationData): boolean {
         let { accountId } = integrationData;
         if (accountId === null || accountId.length < 20) {
             this._isConfigured = false;
@@ -153,3 +156,4 @@ export function initGoogleCloudPlatformIntegration(
     };
     modules.integrationManager.registerIntegration(googleCloudIntegration);
 };
+*/
