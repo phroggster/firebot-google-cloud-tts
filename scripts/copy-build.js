@@ -22,8 +22,8 @@ const getFirebotScriptsFolderPath = () => {
     );
   } else if (process.platform === "linux") {
     appDataFolderPath = path.join(
-        process.env.HOME,
-        "/.config"
+      process.env.HOME,
+      "/.config"
     );
   } else {
     throw new Error("Unsupported OS!");

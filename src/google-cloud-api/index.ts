@@ -2,26 +2,26 @@ import textToSpeech from "./text-to-speech";
 import { getScriptController } from "../main";
 
 class GoogleCloudApi {
-    private _integrations: string[] = [];
-    referrer: string = null;
-    userAgent: string = null;
+  private _integrations: string[] = [];
+  referrer: string = null;
+  userAgent: string = null;
 
-    get integrations() {
-        const integrationManager = getScriptController().modules.integrationManager;
-        return this._integrations
-            .map(integration => integrationManager.getIntegrationById(integration))
-            .filter(integration => integration.integration.connected);
-    }
+  get integrations() {
+    const integrationManager = getScriptController().modules.integrationManager;
+    return this._integrations
+      .map(integration => integrationManager.getIntegrationById(integration))
+      .filter(integration => integration.integration.connected);
+  }
 
-    get textToSpeech() {
-        return textToSpeech;
-    }
+  get textToSpeech() {
+    return textToSpeech;
+  }
 
-    addIntegration(integrationId: string) {
-        if (!this._integrations.some(value => value == integrationId)) {
-            this._integrations.push(integrationId);
-        }
+  addIntegration(integrationId: string) {
+    if (!this._integrations.some(value => value == integrationId)) {
+      this._integrations.push(integrationId);
     }
+  }
 }
 
 const gcp = new GoogleCloudApi();

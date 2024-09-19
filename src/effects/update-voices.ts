@@ -11,24 +11,24 @@ import { wait } from "../utils";
 const logger = new ContextLogger("fx.update-voices");
 
 interface EffectModel {
-    apiRevision?: string;
-    langCode?: string;
+  apiRevision?: string;
+  langCode?: string;
 };
 
 interface Scope extends EffectScope<EffectModel> {
-    defaultSettings: EffectModel;
+  defaultSettings: EffectModel;
 };
 
 const updateVoicesEffect: Effects.EffectType<EffectModel> = {
-    definition: {
-        id: consts.UPDATEVOICES_EFFECT_ID,
-        name: "Update Google Cloud revised Voices",
-        description: "Update the list of Google Cloud revised TTS voices.",
-        icon: "fad fa-cloud-download",
-        categories: ["fun"],
-        dependencies: [],
-    },
-    optionsTemplate: `
+  definition: {
+    id: consts.UPDATEVOICES_EFFECT_ID,
+    name: "Update Google Cloud revised Voices",
+    description: "Update the list of Google Cloud revised TTS voices.",
+    icon: "fad fa-cloud-download",
+    categories: ["fun"],
+    dependencies: [],
+  },
+  optionsTemplate: `
             <eos-container header="Text">
                 <textarea ng-model="effect.text" class="form-control" name="text" placeholder="Enter text" rows="4" cols="40" replace-variables menu-position="under"></textarea>
             </eos-container>
@@ -132,64 +132,64 @@ const updateVoicesEffect: Effects.EffectType<EffectModel> = {
                 </eos-container>
             </eos-container>
         `,
-    optionsController: ($scope: Scope, $q: any, $rootScope: any, backendCommunicator: any) => {
-        $scope.defaultSettings = Object.freeze<EffectModel>({
-            apiRevision: "v1",
-            langCode: "all"
-        });
+  optionsController: ($scope: Scope, $q: any, $rootScope: any, backendCommunicator: any) => {
+    $scope.defaultSettings = Object.freeze<EffectModel>({
+      apiRevision: "v1",
+      langCode: "all"
+    });
 
-        if ($scope.effect == null) {
-            $scope.effect = $scope.defaultSettings;
-        }
-        if (!$scope.effect.apiRevision || $scope.effect.apiRevision.length < 2) {
-            $scope.effect.apiRevision = $scope.defaultSettings.apiRevision;
-        }
-        if (!$scope.effect.langCode || $scope.effect.langCode.length < 2) {
-            $scope.effect.langCode = $scope.defaultSettings.langCode;
-        }
-    },
-    optionsValidator: (effect) => {
-        const errors: string[] = [];
-        if (effect.apiRevision && effect.apiRevision != "v1" && effect.apiRevision != "v1b1") {
-            errors.push(`Unknown API version ${effect.apiRevision}`);
-        }
-        // TODO: verify lang code...
-        return errors;
-    },
-    onTriggerEvent: async (event) => {
-        const { effect, trigger } = event;
-        let { langCode, apiRevision } = effect;
-
-        if (!apiRevision || apiRevision != "v1b1") {
-            apiRevision = "v1";
-        }
-
-        if (langCode == "all" || !langCode || langCode.length < 2) {
-            langCode = null;
-        }
-        const langLogText = langCode ? ` for lang "${langCode}"` : "";
-
-        let voicesInfo: VoiceInfo[] = undefined;
-        try {
-            if (effect.apiRevision == "v1") {
-                voicesInfo = await gcp.textToSpeech.v1.voices.list(langCode);
-            } else {
-                voicesInfo = await gcp.textToSpeech.v1beta1.voices.list(langCode);
-            }
-        } catch (err) {
-            logger.exception(`Error fetching voices list from api ${apiRevision}{langLogText}`, err);
-            return true;
-        }
-
-        // TODO: Update data source
-
-        if (voicesInfo && voicesInfo.length > 0) {
-            logger.info(`updated voices list from api ${apiRevision}${langLogText}, got ${voicesInfo.length} voices.`);
-        } else {
-            logger.warn(`Received zero voices from api ${apiRevision}${langLogText}`);
-        }
-        return true;
+    if ($scope.effect == null) {
+      $scope.effect = $scope.defaultSettings;
     }
+    if (!$scope.effect.apiRevision || $scope.effect.apiRevision.length < 2) {
+      $scope.effect.apiRevision = $scope.defaultSettings.apiRevision;
+    }
+    if (!$scope.effect.langCode || $scope.effect.langCode.length < 2) {
+      $scope.effect.langCode = $scope.defaultSettings.langCode;
+    }
+  },
+  optionsValidator: (effect) => {
+    const errors: string[] = [];
+    if (effect.apiRevision && effect.apiRevision != "v1" && effect.apiRevision != "v1b1") {
+      errors.push(`Unknown API version ${effect.apiRevision}`);
+    }
+    // TODO: verify lang code...
+    return errors;
+  },
+  onTriggerEvent: async (event) => {
+    const { effect, trigger } = event;
+    let { langCode, apiRevision } = effect;
+
+    if (!apiRevision || apiRevision != "v1b1") {
+      apiRevision = "v1";
+    }
+
+    if (langCode == "all" || !langCode || langCode.length < 2) {
+      langCode = null;
+    }
+    const langLogText = langCode ? ` for lang "${langCode}"` : "";
+
+    let voicesInfo: VoiceInfo[] = undefined;
+    try {
+      if (effect.apiRevision == "v1") {
+        voicesInfo = await gcp.textToSpeech.v1.voices.list(langCode);
+      } else {
+        voicesInfo = await gcp.textToSpeech.v1beta1.voices.list(langCode);
+      }
+    } catch (err) {
+      logger.exception(`Error fetching voices list from api ${apiRevision}{langLogText}`, err);
+      return true;
+    }
+
+    // TODO: Update data source
+
+    if (voicesInfo && voicesInfo.length > 0) {
+      logger.info(`updated voices list from api ${apiRevision}${langLogText}, got ${voicesInfo.length} voices.`);
+    } else {
+      logger.warn(`Received zero voices from api ${apiRevision}${langLogText}`);
+    }
+    return true;
+  }
 }
 
 export default updateVoicesEffect;
