@@ -24,8 +24,8 @@
   ],
   "main": "",
   "scripts": {
-    "build": "webpack",
-    "build:dev": "npm run build && npm run copy",
+    "build": "webpack -c webpack.min.cjs",
+    "build:dev": "webpack -c webpack.dev.cjs && npm run copy",
     "copy": "node ./scripts/copy-build.js",
     "lint": "eslint src/ tests/",
     "lint:fix": "eslint --fix src/ tests/",

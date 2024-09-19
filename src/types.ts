@@ -174,7 +174,7 @@ export interface IDataProvider {
   getAllLocalesSync(): LocaleInfo[];
   getAllVoices(): Promise<VoiceInfo[]>;
   getAllVoicesSync(): VoiceInfo[];
-  getExtendedVoiceInfo(voiceSelector?: VoiceSelectorParams): Promise<ExtendedVoiceInfo[]>;
+  getExtendedVoiceInfo(voiceSelector?: VoiceSelectorParams | null): Promise<ExtendedVoiceInfo[]>;
   getVoiceLanguage(voiceName: string): Promise<LocaleInfo | null>;
   getVoiceLanguageSync(voiceName: string): LocaleInfo | null;
   getVoicePricingTier(voiceName: string): EVoicePricingTier;
@@ -193,21 +193,6 @@ export interface IPluginParams extends Record<string, unknown> {
   voiceUpdateCheckInterval: EUpdateCheckFrequency;
 };
 
-/** Events produced by the firebot-google-tts-revised custom plugin controller. */
-export interface IPluginEvents {
-  authUpdated: () => void;
-  loading: () => void;
-  loaded: () => void;
-  parametersUpdated: (newParams: IPluginParams) => void;
-  parametersUpdating: (oldParams: IPluginParams, newParams: IPluginParams) => void;
-  unloading: () => void;
-  unloaded: () => void;
-  updateChecking: () => void;
-  updateAvailable: () => void;
-  voiceDataUpdating: () => void;
-  voiceDataUpdated: () => void;
-};
-
 /** Various folder paths used by the firebot-google-tts-revised plugin. */
 export type PluginFolders = {
   /** The path to this script's data directory where ancillary script data (voice list updates) will be saved. */
@@ -215,21 +200,3 @@ export type PluginFolders = {
   /** The path to the temporary folder where audio files will be downloaded to and played from. */
   tmpDir: string;
 }
-
-/** The firebot-google-tts-revised custom plugin controller. */
-export interface IPluginController extends TypedEmitter<IPluginEvents> {
-  /** Gets the plugin's data and settings service. */
-  get dataProvider(): IDataProvider;
-  /** Gets the FirebotSettings service. */
-  get firebotSettings(): FirebotSettings;
-  /** Gets the paths to various folders on disk. */
-  get folders(): PluginFolders;
-  /** Gets a value indicating whether the plugin is enabled in Firebot. */
-  get isEnabled(): boolean;
-  /** Gets the Firebot third-party script modules in use by this script. */
-  get modules(): ScriptModules;
-  /** Gets the custom script manifest for this script. */
-  get scriptManifest(): CustomScriptManifest;
-  /** Gets the script parameters being used by this script. */
-  get scriptParams(): IPluginParams;
-};

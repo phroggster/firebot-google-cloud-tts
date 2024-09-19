@@ -1,5 +1,4 @@
 import { ScriptModules } from "@crowbartools/firebot-custom-scripts-types";
-import { randomInt } from "crypto";
 import fs from "fs";
 import fsp from "fs/promises";
 
@@ -60,7 +59,7 @@ export class DataProvider implements IDataProvider {
 
       if (!fs.existsSync(this._localesFilePath)) {
         try {
-          fs.writeFileSync(this._localesFilePath, JSON.stringify(localesJson), { encoding: "utf-8", flag: 'tw', flush: true, mode: 0o644 });
+          fs.writeFileSync(this._localesFilePath, JSON.stringify(localesJson, null, 2), { encoding: "utf-8", flush: true, mode: 0o644 });
           logger.debug("Created persistent locales data file");
         } catch (err) {
           logger.exception(`Failed to write locale data to "${this._localesFilePath}"`, err as Error);
@@ -69,7 +68,7 @@ export class DataProvider implements IDataProvider {
 
       if (!fs.existsSync(this._voicesFilePath)) {
         try {
-          fs.writeFileSync(this._voicesFilePath, JSON.stringify(voicesJson), { encoding: "utf-8", flag: 'tw', flush: true, mode: 0o644 });
+          fs.writeFileSync(this._voicesFilePath, JSON.stringify(voicesJson, null, 2), { encoding: "utf-8", flush: true, mode: 0o644 });
           logger.debug("Created persistent voices data file");
         } catch (err) {
           logger.exception(`Failed to write voice data "${this._voicesFilePath}"`, err as Error);
@@ -77,7 +76,7 @@ export class DataProvider implements IDataProvider {
       }
 
       logger.debug("Finished initialization");
-    }, randomInt(2000, 5000));
+    }, 2000);
   }
 
   async getAllLocales(): Promise<LocaleInfo[]> {

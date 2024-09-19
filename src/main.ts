@@ -14,11 +14,11 @@ import {
   PluginFolders,
 } from "./types";
 
-export var modules: ScriptModules | null;
-export var settings: FirebotSettings | null;
-export var pluginParams: IPluginParams | null;
-export var folders: PluginFolders | null;
-export var dataProvider: IDataProvider | null;
+export let modules: ScriptModules | null = null;
+export let settings: FirebotSettings | null = null;
+export let pluginParams: IPluginParams | null = null;
+export let folders: PluginFolders | null = null;
+export let dataProvider: IDataProvider | null = null;
 
 const script: Firebot.CustomScript<IPluginParams> = {
   getDefaultParameters: () => {
