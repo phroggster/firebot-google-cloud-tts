@@ -8,7 +8,7 @@ export default tseslint.config(
   pluginJs.configs.recommended,
   ...tseslint.configs.recommended,
 
-  { files: ["**/*.{js,mjs,ts}"] },
+  { files: ["**/*.{cjs,js,mjs,ts}"] },
   { languageOptions: { globals: { ...globals.browser, ...globals.node } } },
   {
     rules: {
@@ -42,7 +42,7 @@ export default tseslint.config(
       "brace-style": "warn", // See: https://eslint.org/docs/rules/brace-style#require-brace-style-brace-style
       "camelcase": "warn", // useCamelCasePleaseKThanks
       "comma-dangle": ["warn", "always-multiline"], // No trailing commas in single-line, warn when missing in multiline
-      "comma-spacing": "warn", // Reqire space after commas
+      "comma-spacing": "warn", // Require space after commas
       "comma-style": "warn", // See: https://eslint.org/docs/rules/comma-style
       "computed-property-spacing": "warn", // No whitespace when using object[thing]
       "curly": "warn", // Must wrap blocks with {}
