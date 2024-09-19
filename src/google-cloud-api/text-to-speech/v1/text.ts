@@ -70,8 +70,8 @@ export const text = {
   async synthesize(
     input: SynthesisInput,
     voice: VoiceSelectionParams,
-    audioConfig: AudioConfig
-  ): Promise<string> {
+    audioConfig: AudioConfig,
+  ): Promise<string | null> {
     if (!input) {
       throw new Error("'input' parameter null or undefined");
     } else if ((input as SsmlInput) != null && (input as TextInput) != null) {
@@ -103,8 +103,8 @@ export const text = {
     }
 
     const integrations = gcp.integrations;
-    if (!integrations || integrations.length === 0) {
-      logger.warn("Integration is disconnected, unable to synthesize speech");
+    if (integrations.length < 1) {
+      logger.warn("Auth integration is unavailable, unable to synthesize speech");
       return null;
     }
 
@@ -113,18 +113,18 @@ export const text = {
         {
           input,
           voice,
-          audioConfig
+          audioConfig,
         },
         {
           headers: {
             "Referer": gcp.referrer,
-            "User-Agent": gcp.userAgent
-          }
+            "User-Agent": gcp.userAgent,
+          },
         });
       return response.data?.audioContent;
     } catch (err) {
-      logger.exception(`Failed to synthesize speech, code ${(err as AxiosError)?.code ?? "unknown"}`, err, err as Error);
+      logger.exception(`Failed to synthesize speech, code ${(err as AxiosError)?.code ?? "unknown"}`, err as Error);
     }
     return null;
-  }
+  },
 };

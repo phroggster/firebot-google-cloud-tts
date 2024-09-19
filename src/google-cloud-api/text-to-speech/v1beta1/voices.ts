@@ -18,7 +18,7 @@ export const voices = {
   async list(languageCode?: string): Promise<VoiceInfo[]> {
     const integration = gcpapi.integrations[0];
     if (!integration || !integration.integration || !integration.integration.connected || !integration.definition || !integration.definition.accountId) {
-      return null;
+      return [];
     }
 
     try {
@@ -26,13 +26,13 @@ export const voices = {
       const response = await axios.get<VoicesInfo>(`https://texttospeech.googleapis.com/v1beta1/voices?key=${integration.definition.accountId}${langParam}`, {
         headers: {
           "Accept": "application/json",
-          "User-Agent": gcpapi.userAgent
-        }
+          "User-Agent": gcpapi.userAgent,
+        },
       });
       return response.data?.voices;
     } catch (err) {
-      logger.exception(`Failed to list voices, code ${(err as AxiosError)?.code}`, err);
+      logger.exception(`Failed to list voices, code ${(err as AxiosError)?.code}`, err as Error);
     }
-    return null;
-  }
+    return [];
+  },
 };

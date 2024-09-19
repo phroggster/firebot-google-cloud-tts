@@ -1,12 +1,9 @@
 import { Effects, EffectScope } from "@crowbartools/firebot-custom-scripts-types/types/effects";
-import path from "path";
-import { v4 as uuid } from "uuid";
 
 import consts from "../consts";
 import { ContextLogger } from "../context-logger";
 import gcp from "../google-cloud-api";
-import { VoiceInfo, VoicesInfo } from "../types";
-import { wait } from "../utils";
+import { VoiceInfo } from "../types";
 
 const logger = new ContextLogger("fx.update-voices");
 
@@ -132,64 +129,72 @@ const updateVoicesEffect: Effects.EffectType<EffectModel> = {
                 </eos-container>
             </eos-container>
         `,
-  optionsController: ($scope: Scope, $q: any, $rootScope: any, backendCommunicator: any) => {
-    $scope.defaultSettings = Object.freeze<EffectModel>({
+  optionsController: ($scope: unknown) => {
+    const scope = $scope as Scope;
+    if (!scope) {
+      throw new Error("$scope was not assignable to a Scope");
+    }
+
+    scope.defaultSettings = Object.freeze<EffectModel>({
       apiRevision: "v1",
-      langCode: "all"
+      langCode: "all",
     });
 
-    if ($scope.effect == null) {
-      $scope.effect = $scope.defaultSettings;
+    if (scope.effect == null) {
+      scope.effect = scope.defaultSettings;
     }
-    if (!$scope.effect.apiRevision || $scope.effect.apiRevision.length < 2) {
-      $scope.effect.apiRevision = $scope.defaultSettings.apiRevision;
+    if (!scope.effect.apiRevision || scope.effect.apiRevision.length < 2) {
+      scope.effect.apiRevision = scope.defaultSettings.apiRevision;
     }
-    if (!$scope.effect.langCode || $scope.effect.langCode.length < 2) {
-      $scope.effect.langCode = $scope.defaultSettings.langCode;
+    if (!scope.effect.langCode || scope.effect.langCode.length < 2) {
+      scope.effect.langCode = scope.defaultSettings.langCode;
     }
   },
   optionsValidator: (effect) => {
     const errors: string[] = [];
-    if (effect.apiRevision && effect.apiRevision != "v1" && effect.apiRevision != "v1b1") {
+    if (effect.apiRevision && effect.apiRevision.toLowerCase() !== "v1" && effect.apiRevision.toLowerCase() !== "v1b1") {
       errors.push(`Unknown API version ${effect.apiRevision}`);
     }
     // TODO: verify lang code...
     return errors;
   },
   onTriggerEvent: async (event) => {
-    const { effect, trigger } = event;
-    let { langCode, apiRevision } = effect;
+    const { effect } = event;
+    let { langCode } = effect;
 
-    if (!apiRevision || apiRevision != "v1b1") {
+    let apiRevision: string;
+    if (!effect.apiRevision || effect.apiRevision.toLowerCase() !== "v1b1") {
       apiRevision = "v1";
+    } else {
+      apiRevision = "v1b1";
     }
 
-    if (langCode == "all" || !langCode || langCode.length < 2) {
-      langCode = null;
+    if (!langCode || langCode.length < 2 || langCode.toLowerCase() === "all") {
+      langCode = undefined;
     }
-    const langLogText = langCode ? ` for lang "${langCode}"` : "";
 
-    let voicesInfo: VoiceInfo[] = undefined;
+    const langLogText = langCode ? `for langCode "${langCode}"` : "for all languages";
+    let voicesInfo: VoiceInfo[] = [];
     try {
-      if (effect.apiRevision == "v1") {
+      if (apiRevision !== "v1b1") {
         voicesInfo = await gcp.textToSpeech.v1.voices.list(langCode);
       } else {
         voicesInfo = await gcp.textToSpeech.v1beta1.voices.list(langCode);
       }
     } catch (err) {
-      logger.exception(`Error fetching voices list from api ${apiRevision}{langLogText}`, err);
+      logger.exception(`Error fetching voices list from api ${apiRevision}{langLogText}`, err as Error);
       return true;
     }
 
     // TODO: Update data source
 
     if (voicesInfo && voicesInfo.length > 0) {
-      logger.info(`updated voices list from api ${apiRevision}${langLogText}, got ${voicesInfo.length} voices.`);
+      logger.info(`Updated voices list from api ${apiRevision} ${langLogText}, got ${voicesInfo.length} voices.`);
     } else {
-      logger.warn(`Received zero voices from api ${apiRevision}${langLogText}`);
+      logger.warn(`Received zero voices from api ${apiRevision} ${langLogText}`);
     }
     return true;
-  }
-}
+  },
+};
 
 export default updateVoicesEffect;

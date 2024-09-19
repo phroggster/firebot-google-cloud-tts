@@ -1,4 +1,5 @@
 import { ScriptModules } from "@crowbartools/firebot-custom-scripts-types";
+import { randomInt } from "crypto";
 import fs from "fs";
 import fsp from "fs/promises";
 
@@ -12,7 +13,7 @@ import {
   LocalesInfo,
   VoiceInfo,
   VoicesInfo,
-} from "./types"
+} from "./types";
 
 import localesJson from "../data/locales.json";
 import voicesJson from "../data/voices.json";
@@ -26,49 +27,57 @@ type VoiceSelectorParams = {
 
 const logger = new ContextLogger("data");
 const localesFileName = "locales.json";
-const settingsFileName = "settings.json";
+// const settingsFileName = "settings.json";
 const voicesFileName = "voices.json";
 
 /**
  * A repository for maintaining the data files and settings that the plugin utilizes.
- * 
+ *
  * JSON data for the plugin is included in the webpack, but this data can and will be updated at
  * runtime either manually through an effect or automatically. So this class will simply
  * de/serialize such data from/to the plugin's data directory.
- * 
+ *
  * It will not retain data in-memory, and everything about it is designed to be async to/from disk.
  */
 export class DataProvider implements IDataProvider {
-  private _localesFilePath: string = null;
-  private _settingsFilePath: string = null;
-  private _voicesFilePath: string = null;
+  private _localesFilePath: string;
+  // TODO: private _settingsFilePath: string;
+  private _voicesFilePath: string;
 
   constructor(dataFolder: string, path: ScriptModules["path"]) {
     this._localesFilePath = path.join(dataFolder, localesFileName);
     this._voicesFilePath = path.join(dataFolder, voicesFileName);
 
-    if (!fs.existsSync(dataFolder)) {
-      try {
-        fs.mkdirSync(dataFolder, { mode: 0o755, recursive: true });
+    setTimeout(() => {
+      if (!fs.existsSync(dataFolder)) {
+        try {
+          fs.mkdirSync(dataFolder, { mode: 0o755, recursive: true });
+          logger.debug("Created persistent data folder");
+        } catch (err) {
+          logger.exception(`Failed to create persistent data folder at "${dataFolder}"`, err as Error);
+        }
       }
-      catch (err) {
-        logger.exception("Failed to create data folder", err);
+
+      if (!fs.existsSync(this._localesFilePath)) {
+        try {
+          fs.writeFileSync(this._localesFilePath, JSON.stringify(localesJson), { encoding: "utf-8", flag: 'tw', flush: true, mode: 0o644 });
+          logger.debug("Created persistent locales data file");
+        } catch (err) {
+          logger.exception(`Failed to write locale data to "${this._localesFilePath}"`, err as Error);
+        }
       }
-    }
-    if (!fs.existsSync(this._localesFilePath)) {
-      try {
-        fs.writeFileSync(this._localesFilePath, JSON.stringify(localesJson), { encoding: "utf-8", flag: 'tw', flush: true, mode: 0o644 });
-      } catch (err) {
-        logger.exception(`Failed to create file "${this._localesFilePath}"`, err);
+
+      if (!fs.existsSync(this._voicesFilePath)) {
+        try {
+          fs.writeFileSync(this._voicesFilePath, JSON.stringify(voicesJson), { encoding: "utf-8", flag: 'tw', flush: true, mode: 0o644 });
+          logger.debug("Created persistent voices data file");
+        } catch (err) {
+          logger.exception(`Failed to write voice data "${this._voicesFilePath}"`, err as Error);
+        }
       }
-    }
-    if (!fs.existsSync(this._voicesFilePath)) {
-      try {
-        fs.writeFileSync(this._voicesFilePath, JSON.stringify(voicesJson), { encoding: "utf-8", flag: 'tw', flush: true, mode: 0o644 });
-      } catch (err) {
-        logger.exception(`Failed to create file "${this._voicesFilePath}"`, err);
-      }
-    }
+
+      logger.debug("Finished initialization");
+    }, randomInt(2000, 5000));
   }
 
   async getAllLocales(): Promise<LocaleInfo[]> {
@@ -76,7 +85,7 @@ export class DataProvider implements IDataProvider {
       const jsonLocales = await fsp.readFile(this._localesFilePath, { encoding: "utf-8", flag: "r" });
       return ((JSON.parse(jsonLocales) as LocalesInfo) ?? (localesJson as LocalesInfo))?.locales ?? [];
     } catch (err) {
-      logger.exception(`Failed to read locales data from "${this._localesFilePath}"`, err);
+      logger.exception(`Failed to read locales data from "${this._localesFilePath}"`, err as Error);
     }
     return [];
   }
@@ -86,7 +95,7 @@ export class DataProvider implements IDataProvider {
       const jsonLocales = fs.readFileSync(this._localesFilePath, { encoding: "utf-8", flag: "r" });
       return ((JSON.parse(jsonLocales) as LocalesInfo) ?? (localesJson as LocalesInfo))?.locales ?? [];
     } catch (err) {
-      logger.exception(`Failed to synchronously read locales data from "${this._localesFilePath}"`, err);
+      logger.exception(`Failed to synchronously read locales data from "${this._localesFilePath}"`, err as Error);
     }
     return [];
   }
@@ -96,7 +105,7 @@ export class DataProvider implements IDataProvider {
       const jsonVoices = await fsp.readFile(this._voicesFilePath, { encoding: "utf-8", flag: "r" });
       return ((JSON.parse(jsonVoices) as VoicesInfo) ?? (voicesJson as VoicesInfo))?.voices ?? [];
     } catch (err) {
-      logger.exception(`Failed to read voices data from "${this._voicesFilePath}"`, err);
+      logger.exception(`Failed to read voices data from "${this._voicesFilePath}"`, err as Error);
     }
     return [];
   }
@@ -106,7 +115,7 @@ export class DataProvider implements IDataProvider {
       const jsonVoices = fs.readFileSync(this._voicesFilePath, { encoding: "utf-8", flag: "r" });
       return ((JSON.parse(jsonVoices) as VoicesInfo) ?? (voicesJson as VoicesInfo))?.voices ?? [];
     } catch (err) {
-      logger.exception(`Failed to read voices data synchronously from "${this._voicesFilePath}"`, err);
+      logger.exception(`Failed to read voices data synchronously from "${this._voicesFilePath}"`, err as Error);
     }
     return [];
   }
@@ -115,56 +124,50 @@ export class DataProvider implements IDataProvider {
     const locales = await this.getAllLocales();
     let voices = await this.getAllVoices();
 
-    if (voiceSelector) {
-      if (voiceSelector.name) {
-        voices = voices.filter(voice => voice.name.toLowerCase() == voiceSelector.name.toLowerCase());
-      } else if (voiceSelector.langCode) {
-        voices = voices.filter(voice => voice.name.toLowerCase().startsWith(voiceSelector.langCode.toLowerCase()));
-      }
+    if (voiceSelector !== undefined && voiceSelector.name !== undefined) {
+      const vsName = voiceSelector.name.toLowerCase();
+      voices = voices.filter(voice => voice.name.toLowerCase() === vsName);
+    } else if (voiceSelector !== undefined && voiceSelector.langCode !== undefined) {
+      const vsLang = voiceSelector.langCode.toLowerCase();
+      voices = voices.filter(voice => voice.name.toLowerCase().startsWith(vsLang));
     }
 
     return voices
-      .map(voice => {
+      .map((voice) => {
         return {
           ...voice,
-          locInfo: this._getVoiceLangugeFromLocales(voice.name, locales)
+          locInfo: this._getVoiceLocaleInfo(voice.name, locales),
         };
       })
-      .filter(voice => voice.locInfo && voice.locInfo.desc && voice.locInfo.id)
-      .map(voice => {
+      .filter(voice => voice.locInfo !== null)
+      .map((voice) => {
         return {
           gender: voice.ssmlGender,
-          language: voice.locInfo.desc,
-          languageCode: voice.locInfo.id,
+          language: voice.locInfo?.desc ?? "",
+          languageCode: voice.locInfo?.id ?? "",
           name: voice.name,
           pricing: this.getVoicePricingTier(voice.name),
           sampleRate: voice.naturalSampleRateHertz,
-          technology: this.getVoiceTechnology(voice.name)
+          technology: this.getVoiceTechnology(voice.name),
         };
       });
   }
 
-  async getVoiceLanguage(voiceName: string): Promise<LocaleInfo> {
-    if (!voiceName) {
-      return null;
-    }
+  async getVoiceLanguage(voiceName: string): Promise<LocaleInfo | null> {
     const locales = await this.getAllLocales();
-    return this._getVoiceLangugeFromLocales(voiceName, locales);
+    return this._getVoiceLocaleInfo(voiceName, locales);
   }
 
-  getVoiceLanguageSync(voiceName: string): LocaleInfo {
-    if (!voiceName) {
-      return null;
-    }
+  getVoiceLanguageSync(voiceName: string): LocaleInfo | null {
     const locales = this.getAllLocalesSync();
-    return this._getVoiceLangugeFromLocales(voiceName, locales);
+    return this._getVoiceLocaleInfo(voiceName, locales);
   }
 
   getVoicePricingTier(voiceName: string): EVoicePricingTier {
     if (!voiceName) {
       return EVoicePricingTier.Unknown;
     } else if (voiceName.includes("Casual")) {
-      // TODO: Not sure of the pricing tier for casual, but only news voices currently go up to K?
+      // TODO: Not sure of the pricing tier for casual, but only news voices currently go up to K, so maybe that's correct?
       return EVoicePricingTier.Studio;
     } else if (voiceName.includes("Journey")) {
       return EVoicePricingTier.Journey;
@@ -189,24 +192,24 @@ export class DataProvider implements IDataProvider {
       return EVoiceTechnology.Unknown;
     }
 
-    return Object.values(EVoiceTechnology).find(tech => {
+    return Object.values(EVoiceTechnology).find((tech) => {
       return voiceName.toLowerCase().includes(tech.toLowerCase());
-    }) ?? EVoiceTechnology.Unknown;
+    }) || EVoiceTechnology.Unknown;
   }
 
 
-  async replaceAllVoices(voices: VoiceInfo[]): Promise<void> {
+  async replaceAllVoices(_: VoiceInfo[]): Promise<void> {
     // TODO:
     throw new Error("Method not implemented.");
   }
 
-  async updateVoices(voices: VoiceInfo[]): Promise<void> {
+  async updateVoices(_: VoiceInfo[]): Promise<void> {
     // TODO:
     throw new Error("Method not implemented.");
   }
 
 
-  private _getVoiceLangugeFromLocales(voiceName: string, locales: LocaleInfo[]): LocaleInfo {
+  private _getVoiceLocaleInfo(voiceName: string, locales: LocaleInfo[]): LocaleInfo | null {
     return locales.find(locale => voiceName.toLowerCase().startsWith(locale.id.toLowerCase())) || null;
   }
-};
+}

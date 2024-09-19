@@ -5,7 +5,6 @@ import {
 import { FirebotSettings } from "@crowbartools/firebot-custom-scripts-types/types/settings";
 import { TypedEmitter } from "tiny-typed-emitter";
 
-
 /**
  * @see https://cloud.google.com/text-to-speech/docs/reference/rest/v1/AudioConfig#AudioEncoding
  * @see https://cloud.google.com/text-to-speech/docs/reference/rest/v1beta1/AudioConfig#AudioEncoding
@@ -112,10 +111,6 @@ export enum EVoiceTechnology {
 
 
 
-/////////////////////
-// Settings + data //
-/////////////////////
-
 /** All of the information available about a specific voice. */
 export type ExtendedVoiceInfo = {
   /** The gender that the voice is categorized as using, such as "FEMALE". */
@@ -133,6 +128,7 @@ export type ExtendedVoiceInfo = {
   /** The technology supported by the voice model, such as "Wavenet". */
   technology: EVoiceTechnology;
 };
+
 /** An object containing information about a language and potentially a locale. */
 export type LocaleInfo = {
   /** A BCP-47 language and likely locale code, e.g. "en-US", or possibly "en". Will never contain more than two parts (lang-LOCALE). */
@@ -140,11 +136,13 @@ export type LocaleInfo = {
   /** The English description of the entry, e.g. "English (United States)", or "English". */
   desc: string;
 };
+
 /** An object representing an array of locale information objects, as serialized to/from locales.json. */
 export type LocalesInfo = {
   /** An array of LocaleInfo objects. */
   locales: LocaleInfo[];
 };
+
 /** An object representing information about a Google Text-to-Speech voice. */
 export type VoiceInfo = {
   /** The BCP-47 language (and locale) tags supported by the voice. */
@@ -156,17 +154,20 @@ export type VoiceInfo = {
   /** The preferred audio sampling rate of the voice, in hertz, or samples per second. Typically, 24000. */
   naturalSampleRateHertz: number;
 };
+
 /**  An object representing an array of Google Text-to-Speech voices, as serialized to/from voices.json, or retrieved from the Google API. */
 export type VoicesInfo = {
   /** An array of VoiceInfo objects. */
   voices: VoiceInfo[];
 };
+
 type VoiceSelectorParams = {
   langCode?: string;
   name?: string;
   pricing?: string;
   technology?: string;
 };
+
 /** Plugin data de/serialization provider. */
 export interface IDataProvider {
   getAllLocales(): Promise<LocaleInfo[]>;
@@ -174,8 +175,8 @@ export interface IDataProvider {
   getAllVoices(): Promise<VoiceInfo[]>;
   getAllVoicesSync(): VoiceInfo[];
   getExtendedVoiceInfo(voiceSelector?: VoiceSelectorParams): Promise<ExtendedVoiceInfo[]>;
-  getVoiceLanguage(voiceName: string): Promise<LocaleInfo>;
-  getVoiceLanguageSync(voiceName: string): LocaleInfo;
+  getVoiceLanguage(voiceName: string): Promise<LocaleInfo | null>;
+  getVoiceLanguageSync(voiceName: string): LocaleInfo | null;
   getVoicePricingTier(voiceName: string): EVoicePricingTier;
   getVoiceTechnology(voiceName: string): EVoiceTechnology;
 
@@ -184,17 +185,20 @@ export interface IDataProvider {
 };
 
 
-
-///////////////////////
-// Plugin controller //
-///////////////////////
+/** Parameters used by the firebot-google-tts-revised plugin. */
+export interface IPluginParams extends Record<string, unknown> {
+  /** How often should the script check for new updates. */
+  pluginUpdateCheckInterval: EUpdateCheckFrequency;
+  /** How often should the script check for voice list updates. */
+  voiceUpdateCheckInterval: EUpdateCheckFrequency;
+};
 
 /** Events produced by the firebot-google-tts-revised custom plugin controller. */
 export interface IPluginEvents {
   authUpdated: () => void;
   loading: () => void;
   loaded: () => void;
-  parametersUpdated: (params: IPluginParams) => void;
+  parametersUpdated: (newParams: IPluginParams) => void;
   parametersUpdating: (oldParams: IPluginParams, newParams: IPluginParams) => void;
   unloading: () => void;
   unloaded: () => void;
@@ -202,14 +206,6 @@ export interface IPluginEvents {
   updateAvailable: () => void;
   voiceDataUpdating: () => void;
   voiceDataUpdated: () => void;
-};
-
-/** Parameters available for the firebot-google-tts-revised plugin. */
-export interface IPluginParams extends Record<string, any> {
-  /** How often should the script check for new updates. */
-  pluginUpdateCheckInterval: EUpdateCheckFrequency;
-  /** How often should the script check for voice list updates. */
-  voiceUpdateCheckInterval: EUpdateCheckFrequency;
 };
 
 /** Various folder paths used by the firebot-google-tts-revised plugin. */

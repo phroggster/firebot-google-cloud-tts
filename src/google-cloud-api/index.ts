@@ -1,15 +1,19 @@
+import { IntegrationWithUnknowns } from "@crowbartools/firebot-custom-scripts-types";
+import { modules } from "../main";
 import textToSpeech from "./text-to-speech";
-import { getScriptController } from "../main";
 
 class GoogleCloudApi {
   private _integrations: string[] = [];
-  referrer: string = null;
-  userAgent: string = null;
+  referrer?: string;
+  userAgent?: string;
 
   get integrations() {
-    const integrationManager = getScriptController().modules.integrationManager;
+    if (modules === null || modules.integrationManager === undefined) {
+      return [];
+    }
+    const integrationManager = modules.integrationManager;
     return this._integrations
-      .map(integration => integrationManager.getIntegrationById(integration))
+      .map(integration => integrationManager?.getIntegrationById(integration))
       .filter(integration => integration.integration.connected);
   }
 
@@ -18,7 +22,8 @@ class GoogleCloudApi {
   }
 
   addIntegration(integrationId: string) {
-    if (!this._integrations.some(value => value == integrationId)) {
+    const lcase = integrationId.toLowerCase();
+    if (!this._integrations.some(intId => intId.toLowerCase() === lcase)) {
       this._integrations.push(integrationId);
     }
   }

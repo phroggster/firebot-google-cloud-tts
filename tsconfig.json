@@ -2,8 +2,8 @@
   "compilerOptions": {
     "outDir": "./dist/",
     "target": "ES6",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    "module": "CommonJS",
+    "moduleResolution": "node",
     "allowJs": true,
     "allowSyntheticDefaultImports": true,
     "downlevelIteration": true,
@@ -11,7 +11,8 @@
     "experimentalDecorators": true,
     "noImplicitAny": true,
     "resolveJsonModule": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "strict": true
   },
   "include": [
     "./src/**/*",

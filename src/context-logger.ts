@@ -1,5 +1,4 @@
-import { ScriptModules } from "@crowbartools/firebot-custom-scripts-types";
-import { getScriptController } from "./main";
+import { modules } from "./main";
 
 const rootName = "gcptts";
 
@@ -11,22 +10,22 @@ export class ContextLogger {
   }
 
   debug(msg: string, ...args: unknown[]) {
-    getScriptController()?.modules?.logger?.debug(`${rootName}.${this._context}: ${msg}`, args);
+    modules?.logger.debug(`${rootName}.${this._context}: ${msg}`, args);
   }
 
   info(msg: string, ...args: unknown[]) {
-    getScriptController()?.modules?.logger?.info(`${rootName}.${this._context}: ${msg}`, args);
+    modules?.logger.info(`${rootName}.${this._context}: ${msg}`, args);
   }
 
   warn(msg: string, ...args: unknown[]) {
-    getScriptController()?.modules?.logger?.warn(`${rootName}.${this._context}: ${msg}`, args);
+    modules?.logger.warn(`${rootName}.${this._context}: ${msg}`, args);
   }
 
   error(msg: string, ...args: unknown[]) {
-    getScriptController()?.modules?.logger?.error(`${rootName}.${this._context}: ${msg}`, args);
+    modules?.logger.error(`${rootName}.${this._context}: ${msg}`, args);
   }
 
-  exception(msg: string, error: unknown, ...args: unknown[]) {
-    getScriptController()?.modules?.logger?.error(`${rootName}.${this._context} ${msg}: ${((error as Error)?.message || "unknown error")}`, args);
+  exception(msg: string, error: Error, ...args: unknown[]) {
+    modules?.logger.error(`${rootName}.${this._context} ${msg}: ${(error.message || "unknown error")}`, args);
   }
 }

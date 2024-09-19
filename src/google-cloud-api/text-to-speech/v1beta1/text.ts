@@ -1,16 +1,12 @@
 import axios, { AxiosError } from "axios";
 
-import consts from "../../../consts";
 import { ContextLogger } from "../../../context-logger";
-import { getScriptController } from "../../../main";
 import { EAudioEncoding, EAudioProfile, ESsmlVoiceGender } from "../../../types";
 
 import gcp from "../../";
 
 // Provides the text-to-speech/v1beta1/text API endpoint.
 // https://cloud.google.com/text-to-speech/docs/reference/rest/v1beta1/text
-
-const logger = new ContextLogger("api.v1b1.text");
 
 /** Speech synthesis markup language (SSML) synthesis request data. */
 type SsmlInput = {
@@ -69,6 +65,9 @@ type TextSynthesizeResponse = {
   audioContent: string;
 };
 
+
+const logger = new ContextLogger("api.v1b1.text");
+
 export const text = {
   /**
    * Synthesizes speech using the v1beta1 text-to-speech endpoint on the Google Cloud Platform.
@@ -80,8 +79,8 @@ export const text = {
   async synthesize(
     input: SynthesisInput,
     voice: VoiceSelectionParams,
-    audioConfig: AudioConfig
-  ): Promise<string> {
+    audioConfig: AudioConfig,
+  ): Promise<string | null> {
     if (!input) {
       throw new Error("'input' parameter null or undefined");
     } else if ((input as SsmlInput) != null && (input as TextInput) != null) {
@@ -113,8 +112,8 @@ export const text = {
     }
 
     const integrations = gcp.integrations;
-    if (!integrations || integrations.length === 0) {
-      logger.warn("Integration is disconnected, unable to synthesize speech");
+    if (integrations.length < 1) {
+      logger.warn("Auth integration is unavailable, unable to synthesize speech");
       return null;
     }
 
@@ -123,18 +122,18 @@ export const text = {
         {
           input,
           voice,
-          audioConfig
+          audioConfig,
         },
         {
           headers: {
             "Referer": gcp.referrer,
-            "User-Agent": gcp.userAgent
-          }
+            "User-Agent": gcp.userAgent,
+          },
         });
       return response.data?.audioContent;
     } catch (err) {
-      logger.exception(`Failed to synthesize speech, code ${(err as AxiosError)?.code ?? "unknown"}`, err, err as Error);
+      logger.exception(`Failed to synthesize speech, code ${(err as AxiosError)?.code ?? "unknown"}`, err as Error);
     }
     return null;
-  }
+  },
 };

@@ -6,11 +6,15 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   pluginJs.configs.recommended,
-  ...tseslint.configs.recommended,
-
-  { files: ["**/*.{cjs,js,mjs,ts}"] },
-  { languageOptions: { globals: { ...globals.browser, ...globals.node } } },
+  ...tseslint.configs.strict,
   {
+    files: ["**/*.{cjs,js,mjs,ts}"],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+      },
+    },
     rules: {
       // Deviations from < https://eslint.org/docs/rules/#best-practices >
       "no-console": "error", // No console logging
@@ -66,7 +70,7 @@ export default tseslint.config(
       "no-var": "warn", // Use let/const instead of var
 
       // Other deviations
-      "no-unused-vars": "warn",
+      "no-unused-vars": "off", // @typescript-eslint handles this better
       "prefer-template": "warn", // Use template strings instead of + concat
       "template-curly-spacing": ["warn", "never"],
       "no-useless-concat": "error", // no concat'ing literal strings
@@ -74,14 +78,17 @@ export default tseslint.config(
       "no-debugger": "warn",
       "no-warning-comments": [
         "warn",
-        { terms: ["todo", "to do", "fix", "fixme", "fix me", "need"], location: "start" }
+        { terms: ["todo", "to do", "fix", "fixme", "fix me", "need"], location: "start" },
       ], // warn about todo comments
 
       // typescript
       "@typescript-eslint/ban-ts-comment": "off",
       "@typescript-eslint/ban-types": "warn",
-      "@typescript-eslint/no-unused-vars": "warn",
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { "args": "after-used", "argsIgnorePattern": "^_", "vars": "all" },
+      ], // warn all unused, unless param comes before a later used one or param name starts with an '_'
       "@typescript-eslint/indent": ["warn", 2],
-    }
+    },
   },
 );

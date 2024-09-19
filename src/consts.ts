@@ -1,3 +1,4 @@
+import { EUpdateCheckFrequency } from "./types";
 /**
  * Constants available for use throughout the google-cloud-tts effect scripts.
  * Changing anything in here is going to cause end-users a very bad time.
@@ -25,9 +26,9 @@ export default Object.freeze({
   /** The default parameters used by this plugin. */
   DEFAULT_PLUGIN_PARAMS: {
     /** The default script parameter for scriptUpdateChecks. */
-    pluginUpdateCheckInterval: "OnStart",
+    pluginUpdateCheckInterval: EUpdateCheckFrequency.OnStart,
     /** The default script parameter for voiceUpdateChecks. */
-    voiceUpdateCheckInterval: "Weekly"
+    voiceUpdateCheckInterval: EUpdateCheckFrequency.Weekly,
   },
   /** The version number of this plugin. */
   PLUGIN_VERSION: "0.4.0",

@@ -2,16 +2,16 @@ import {
   IntegrationController,
   IntegrationDefinition,
   IntegrationData,
-  IntegrationEvents
+  IntegrationEvents,
 } from "@crowbartools/firebot-custom-scripts-types";
 import { FirebotParams } from "@crowbartools/firebot-custom-scripts-types/types/modules/firebot-parameters";
 import { TypedEmitter } from "tiny-typed-emitter";
 
 import consts from "../consts";
-import { getScriptController } from "../main";
+import { modules } from "../main";
 import { ContextLogger } from "../context-logger";
 
-const logger = new ContextLogger("gcptts.integrations.apiKey");;
+const logger = new ContextLogger("gcptts.integrations.apiKey");
 
 const integrationDefinition: IntegrationDefinition<FirebotParams> = {
   id: consts.APIKEY_INTEGRATION_ID,
@@ -27,9 +27,9 @@ const integrationDefinition: IntegrationDefinition<FirebotParams> = {
               - Click <ins>SHOW KEY</ins> on a pre-existing API Key, ***OR*** . . .
               - Click <ins>+ CREATE CREDENTIALS</ins> at the top to create a new key.
             4. Paste the API Key below.
-        `
+        `,
   },
-  settingCategories: null
+  settingCategories: {},
 };
 
 interface ApiKeyIntegrationEvents extends IntegrationEvents {
@@ -48,27 +48,17 @@ class ApikeyIntegrationController
 
   constructor() {
     super();
-    const controller = getScriptController();
-    controller.on("loaded",
+    modules?.frontendCommunicator.on("google-cloud-is-configured",
       () => {
-        this._isScriptLoaded = true;
+        return this._isScriptLoaded && this._isConfigured;
       });
-    controller.on("unloading",
-      () => {
-        this._isScriptLoaded = false;
-        this._setConnected(false);
-      });
-    controller.modules.frontendCommunicator.on("google-cloud-is-configured",
-      () => this._isScriptLoaded && this._isConfigured
-    );
   };
 
   private _checkConfig(integrationData: IntegrationData): boolean {
     const { accountId } = integrationData;
-    if (accountId === null || accountId.length < 20) {
+    if (accountId === null || accountId === undefined || accountId.length < 20) {
       this._isConfigured = false;
-    }
-    else {
+    } else {
       this._isConfigured = true;
     }
     return this._isConfigured;
@@ -127,5 +117,5 @@ class ApikeyIntegrationController
 
 export default {
   definition: integrationDefinition,
-  integration: getScriptController().modules.integrationManager.getIntegrationById(integrationDefinition.id)?.integration ?? new ApikeyIntegrationController()
+  integration: modules?.integrationManager.getIntegrationById(integrationDefinition.id)?.integration ?? new ApikeyIntegrationController(),
 };
