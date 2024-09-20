@@ -7,85 +7,88 @@ import consts from "../consts";
 import { ContextLogger } from "../context-logger";
 import gcp from "../google-cloud-api";
 import { dataProvider, folders, modules, settings } from "../main";
-import { EAudioEncoding, EAudioProfile, IDataProvider, VoiceInfo } from "../types";
+import { EAudioEncoding, EAudioProfile, ExtendedVoiceInfo, VoiceInfo } from "../types";
 import { wait } from "../utils";
 
-enum EApiVersion {
-  unknown = "unknown",
-  v1 = "v1",
-  v1b1 = "v1b1",
+type ApiDefinition = {
+  id: string;
+  name: string;
+};
+type AudioEffectDefinition = {
+  description: string;
+  id: string; // EAudioProfile;
+  name: string;
+};
+type AudioFormatDefinition = {
+  description: string;
+  id: string; // EAudioEncoding;
+  fileExtension: string;
 };
 
 /** The data model that will be used with this effect. */
-interface EffectModel {
+interface IEffectModel {
   /** The input text or SSML to synthesize. */
   text: string;
   /** The name of the voice to use to synthesize the speech. */
   voice: string;
   /** The BCP-47 language and optional region code to use. When undefined or null, the language will be inferred from voiceName. */
-  language: string;
+  language?: string;
 
   /** The pitch adjustment to use. Default: 0.0. */
-  effectPitch: number;
+  effectPitch?: number;
   /** An array of available speech synthesis effect profiles used to simulate listening on various audio devices. Default: []. Multiple effects can be combined, but leave empty for the best quality. */
-  effectProfiles: EAudioProfile[];
+  effectProfiles?: string[];
   /** The speaking rate to use. Default: 1.0. */
-  effectRate: number;
-  /** Adjust the apparant amplitude gain of the voice. Default: 0.0. */
-  effectVolume: number;
+  effectRate?: number;
+  /** Adjust the apparent amplitude gain of the voice. Default: 0.0. */
+  effectVolume?: number;
 
   /** The audio output device to speak the text out with: e.g. "App Default", "overlay", "Headphones", "Speakers", etc. */
-  audioOutputDevice: {
+  audioOutputDevice?: {
     deviceId?: string;
     label?: string;
   };
   /** The volume to play the resulting sample at. Default 5.0, range 1.0 to 10.0. */
-  outputVolume: number;
+  outputVolume?: number;
   /** Used to specify which overlay instance to send audio to when overlay instancing has been enabled. */
   overlayInstance?: string;
 
   /** The audio format specifier to use. Default: oggopus */
-  audioFormat: EAudioEncoding;
+  audioFormat?: string;
   /** The text-to-speech api revision to use. Default: v1. Acceptable values: v1, v1b1. */
-  apiVersion: EApiVersion;
+  apiVersion?: string;
   /** Enable SSML formatting in the provided text. Default: false. */
-  ssml: boolean;
+  ssml?: boolean;
   /** Whether to wait for playback to finish before marking the effect as completed. Default: true. */
-  waitForPlayback: boolean;
+  waitForPlayback?: boolean;
 };
 
-/** The data model that Firebot uses to play sound data, either via playsound or sendDataToOverlay. */
-interface SoundDataModel {
-  audioOutputDevice: {
-    deviceId?: string;
-    label?: string;
-  };
-  filepath: string;
-  format: string;
-  maxSoundLength: number;
-  volume: number;
-
-  resourceToken?: string;
-  overlayInstance?: string;
-};
-
-type OnInit = {
+/** An object that has an $onInit() function. */
+interface IOnInitable {
   /** Automatically invoked during initialization after the data model has been hydrated. */
   $onInit(): void;
 };
 
-/** All of the stuff that is needed to display the effect's templated control. */
-interface Scope extends EffectScope<EffectModel>, OnInit {
+interface ICtrl extends IOnInitable {
+  /** The Google Cloud Platform text-to-speech API versions that are available for use. */
+  apiDefinitions: ApiDefinition[];
+  /** An object representing the default effect model settings. */
+  defaultSettings: IEffectModel;
+  /** All of the audio effects that are available for use. */
+  effectDefinitions: AudioEffectDefinition[];
+  /** All of the audio file formats that are available for use. */
+  formatDefinitions: AudioFormatDefinition[];
   /** All of the voices that are available for use. */
-  allVoices: VoiceInfo[];
+  voices: ExtendedVoiceInfo[];
+}
 
-  /** The plugin data and settings de/serialization service. */
-  dataProvider?: IDataProvider;
+/** The angular root scope. */
+interface IRootScope {
+  openLinkExternally(uri: string): void;
+};
 
-
-  /** A read-only object representing the default effect settings. */
-  defaultSettings: EffectModel;
-
+/** The angular control's scope. */
+interface IScope extends EffectScope<IEffectModel>, IOnInitable {
   ///** An array of all genders available for filtering voices, i.e. [ "Any", "Male", "Female" ] */
   //selectableGenders: Array<string>;
   ///** An array of all languages available for filtering voices, e.g. [ "Any", "English (United States)", ... ]. */
@@ -132,31 +135,68 @@ interface Scope extends EffectScope<EffectModel>, OnInit {
   resetGeneratorSettings(): void;
 };
 
-type RootScope = {
-  openLinkExternally(uri: string): void;
+/** The data model that Firebot uses to play sound data, either via playsound or sendDataToOverlay. */
+interface ISoundDataModel {
+  audioOutputDevice: {
+    deviceId?: string;
+    label?: string;
+  };
+  filepath: string;
+  format: string;
+  maxSoundLength: number;
+  volume: number;
+
+  resourceToken?: string;
+  overlayInstance?: string;
 };
 
-const audioFormats = [
-  { description: "MP3 64k (v1beta1 only)", fileExtension: "mp3", id: "MP3_64_KBPS" },
-  { description: "Ogg Opus", fileExtension: "ogg", id: "OGG_OPUS" },
-  { description: "MP3 32k", fileExtension: "mp3", id: "MP3" },
-  { description: "Uncompressed WAV", fileExtension: "wav", id: "LINEAR16" },
-  { description: "European phone (A-law)", fileExtension: "wav", id: "ALAW" },
-  { description: "America/Japan phone (μ-law)", fileExtension: "wav", id: "MULAW" },
-];
-const effectProfiles = [
-  "wearable-class-device",
-  "handset-class-device",
-  "headphone-class-device",
-  "small-bluetooth-speaker-class-device",
-  "medium-bluetooth-speaker-class-device",
-  "large-home-entertainment-class-device",
-  "large-automotive-class-device",
-  "telephony-class-application",
-];
+type Mutable<T> = {
+  -readonly [P in keyof T]: T[P];
+};
+declare function clone<T>(val: T): Mutable<T>;
+
+const defaultSettings = Object.freeze<IEffectModel>({
+  apiVersion: "v1",
+  audioFormat: "OGG_OPUS", // EAudioEncoding.oggopus
+  audioOutputDevice: { label: "App Default" },
+  effectPitch: 0.0,
+  effectProfiles: [],
+  effectRate: 1.0,
+  effectVolume: 0.0,
+  language: "en-US",
+  outputVolume: 7,
+  overlayInstance: undefined,
+  ssml: false,
+  text: "",
+  voice: "en-US-Neural2-C",
+  waitForPlayback: true,
+});
+const apiDefinitions = Object.freeze<ApiDefinition[]>([
+  { id: "v1", name: "Version 1" },
+  { id: "v1b1", name: "Version 1 beta 1" },
+]);
+const effectDefinitions = Object.freeze<AudioEffectDefinition[]>([
+  { name: "Bluetooth® Speaker", id: EAudioProfile.medbt, description: "Simulates the audio playing through a larger Bluetooth® speaker, such as an Amazon Echo Studio® or a Google Nest Audio® device." },
+  { name: "Car Stereo", id: EAudioProfile.auto, description: "Simulates the audio playing through a high-end car stereo system." },
+  { name: "Headphones", id: EAudioProfile.headphone, description: "Simulates the audio playing through a decent pair of headphones or earbuds." },
+  { name: "Home Theater", id: EAudioProfile.homeent, description: "Simulates the audio playing through a high-end home entertainment system." },
+  { name: "Mini Bluetooth® Speaker", id: EAudioProfile.smallbt, description: "Simulates the audio playing through a small-sized Bluetooth® speaker, like as Amazon Echo Pop™ or a Google Nest Mini®." },
+  { name: "Phone Speaker", id: EAudioProfile.handset, description: "Simulates the audio playing through a smartphone speaker." },
+  { name: "Smart Watch", id: EAudioProfile.wearable, description: "Simulates the audio playing through a smart watch, like an Apple Watch® or a Google Pixel Watch™." },
+  { name: "Telephony", id: EAudioProfile.telephony, description: "Simulates the audio being used in an interactive voice response system, like what a large call center would use for inbound calls." },
+]);
+const formatDefinitions = Object.freeze<AudioFormatDefinition[]>([
+  { description: "MP3 64k (v1beta1 only)", fileExtension: "mp3", id: EAudioEncoding.mp364 },
+  { description: "Ogg Opus", fileExtension: "ogg", id: EAudioEncoding.oggopus },
+  { description: "MP3 32k", fileExtension: "mp3", id: EAudioEncoding.mp3 },
+  { description: "Uncompressed WAV", fileExtension: "wav", id: EAudioEncoding.linear16 },
+  { description: "European phone (G.711 A-law)", fileExtension: "wav", id: EAudioEncoding.alaw },
+  { description: "America/Japan phone (G.711 μ-law)", fileExtension: "wav", id: EAudioEncoding.mulaw },
+]);
+
 const logger = new ContextLogger("effects.synthesize");
 
-const synthesizeEffect: Effects.EffectType<EffectModel, SoundDataModel> = {
+const synthesizeEffect: Effects.EffectType<IEffectModel, ISoundDataModel> = {
   definition: {
     id: consts.TTS_EFFECT_ID,
     name: "Text-To-Speech (Google Cloud)",
@@ -270,220 +310,85 @@ const synthesizeEffect: Effects.EffectType<EffectModel, SoundDataModel> = {
             </eos-container>
         `,
   optionsController: ($ctrl: unknown, $rootScope: unknown, $scope: unknown) => {
-    const scope = $scope as Scope;
-    if (scope === null || scope === undefined) {
-      throw new Error("$scope parameter not assignable to a Scope");
-    }
+    const ctrl = $ctrl as ICtrl;
+    const rootScope = $scope as IRootScope;
+    const scope = $scope as IScope;
 
-    scope.dataProvider = dataProvider ?? undefined;
-    if (scope.dataProvider === undefined) {
-      throw new Error("$scope data provider undefined");
-    }
+    ctrl.apiDefinitions ??= clone(apiDefinitions);
+    ctrl.defaultSettings ??= clone(defaultSettings);
+    ctrl.effectDefinitions ??= clone(effectDefinitions);
+    ctrl.formatDefinitions ??= clone(formatDefinitions);
+    ctrl.voices ??= dataProvider?.voiceInfo() ?? [];
 
-    scope.allVoices = dataProvider?.voices ?? [];
-    scope.defaultSettings = Object.freeze<EffectModel>({
-      text: "",
-      voice: "en-US-Neural2-C",
-      language: "en-US",
-
-      effectPitch: 0.0,
-      effectProfiles: [],
-      effectRate: 1.0,
-      effectVolume: 0.0,
-
-      audioOutputDevice: { label: "App Default" },
-      outputVolume: 7.0,
-      // overlayInstance: undefined,
-      audioFormat: EAudioEncoding.oggopus,
-
-      apiVersion: EApiVersion.v1,
-      ssml: false,
-      waitForPlayback: true,
-    });
-    scope.openLink ??= ($rootScope as RootScope)?.openLinkExternally;
-
-    scope.getLangCode = (voiceInfo: VoiceInfo): string => {
-      if ((voiceInfo?.name?.length ?? 0) < 1) {
-        return "Unknown";
-      }
-      const endIdx = voiceInfo.name.lastIndexOf("-");
-      const withLastHyphen = voiceInfo.name.substring(0, endIdx);
-      const startIdx = withLastHyphen.lastIndexOf("-");
-      return voiceInfo.name.substring(0, startIdx);
-    };
-    scope.getPricingTier = (voiceInfo: VoiceInfo): string => {
-      if ((voiceInfo?.name?.length ?? 0) > 4) {
-        if (voiceInfo.name.includes("Standard")) {
-          return "Standard";
-        }
-        if (voiceInfo.name.includes("Journey")) {
-          return "Journey";
-        }
-        if (voiceInfo.name.includes("Studio")) {
-          return "Studio";
-        }
-        for (const tier of ["Casual", /*"Journey",*/ "Neural2", "News", "Polyglot", "Wavenet"]) {
-          if (voiceInfo.name.includes(tier)) {
-            return "Premium";
-          }
-        }
-      }
-      return "Unknown";
-    };
-    scope.getVoiceTech = (voiceInfo: VoiceInfo): string => {
-      if ((voiceInfo?.name?.length ?? 0) < 4) {
-        return "Unknown";
-      }
-      const { name } = voiceInfo;
-      const endIdx = name.lastIndexOf("-");
-      const withoutLastHyphen = name.substring(0, endIdx);
-      const startIdx = withoutLastHyphen.lastIndexOf("-");
-      return withoutLastHyphen.substring(startIdx + 1, endIdx);
-    };
-
+    scope.openLink = rootScope.openLinkExternally;
     scope.isGeneratorCustomized = (): boolean => {
       return !(
-        scope.effect.effectPitch === scope.defaultSettings.effectPitch &&
-        scope.effect.effectProfiles === scope.defaultSettings.effectProfiles &&
-        scope.effect.effectRate === scope.defaultSettings.effectRate &&
-        scope.effect.effectVolume === scope.defaultSettings.effectVolume);
+        scope.effect.effectPitch === ctrl.defaultSettings.effectPitch &&
+        scope.effect.effectProfiles === ctrl.defaultSettings.effectProfiles &&
+        scope.effect.effectRate === ctrl.defaultSettings.effectRate &&
+        scope.effect.effectVolume === ctrl.defaultSettings.effectVolume);
     };
     scope.resetGeneratorSettings = (): void => {
-      scope.effect.effectPitch = scope.defaultSettings.effectPitch;
-      scope.effect.effectProfiles = scope.defaultSettings.effectProfiles;
-      scope.effect.effectRate = scope.defaultSettings.effectRate;
-      scope.effect.effectVolume = scope.defaultSettings.effectVolume;
+      scope.effect.effectPitch = ctrl.defaultSettings.effectPitch;
+      scope.effect.effectProfiles = ctrl.defaultSettings.effectProfiles;
+      scope.effect.effectRate = ctrl.defaultSettings.effectRate;
+      scope.effect.effectVolume = ctrl.defaultSettings.effectVolume;
     };
 
-    ($ctrl as OnInit).$onInit = () => {
-      logger.debug(`Ctrl oninit, scope effect is: "${scope.effect}"`);
+    ctrl.$onInit = () => {
+      logger.debug(`Ctrl oninit, scope effect is: "${(scope.effect ?? "null")}"`);
       if (!scope.effect) {
-        scope.effect = scope.defaultSettings;
+        scope.effect = structuredClone(ctrl.defaultSettings);
       }
     };
+
     scope.$onInit = () => {
-      logger.debug(`Scope oninit, scope effect is: "${scope.effect}"`);
+      logger.debug(`Scope oninit, scope effect is: "${(scope.effect ?? "null")}"`);
+
+      if (!scope.effect) {
+        scope.effect = structuredClone(ctrl.defaultSettings);
+      }
+      if (!scope.effect.text) {
+        scope.effect.text = ctrl.defaultSettings.text;
+      }
+      if (!scope.effect.voice) {
+        scope.effect.voice = ctrl.defaultSettings.voice;
+      }
+      if (!scope.effect.language) {
+        scope.effect.language = dataProvider?.language(scope.effect.voice)?.id ?? ctrl.defaultSettings.language;
+      }
+      if (scope.effect.effectPitch == null || !Number.isFinite(scope.effect.effectPitch) || scope.effect.effectPitch < -20.0 || scope.effect.effectPitch > 20.0) {
+        scope.effect.effectPitch = ctrl.defaultSettings.effectPitch;
+      }
+      if (scope.effect.effectProfiles == null || !scope.effect.effectProfiles.every(desiredProfile => ctrl.effectDefinitions.some(effDef => effDef.id === desiredProfile))) {
+        scope.effect.effectProfiles = ctrl.defaultSettings.effectProfiles;
+      }
+      if (scope.effect.effectRate == null || !Number.isFinite(scope.effect.effectRate) || scope.effect.effectRate < 0.25 || scope.effect.effectRate > 4.0) {
+        scope.effect.effectRate = ctrl.defaultSettings.effectRate;
+      }
+      if (scope.effect.effectVolume == null || !Number.isFinite(scope.effect.effectVolume) || scope.effect.effectVolume < -96.0 || scope.effect.effectVolume > 16.0) {
+        scope.effect.effectVolume = ctrl.defaultSettings.effectVolume;
+      }
+      if (scope.effect.outputVolume == null || !Number.isFinite(scope.effect.outputVolume) || scope.effect.outputVolume < 1 || scope.effect.outputVolume > 10) {
+        scope.effect.outputVolume = ctrl.defaultSettings.outputVolume;
+      }
+      if (scope.effect.audioFormat == null || !ctrl.formatDefinitions.some(format => format.id === scope.effect.audioFormat)) {
+        scope.effect.audioFormat = ctrl.defaultSettings.audioFormat;
+      }
+      if (scope.effect.apiVersion == null || !ctrl.apiDefinitions.some(apiDef => apiDef.id === scope.effect.apiVersion)) {
+        scope.effect.apiVersion = ctrl.defaultSettings.apiVersion;
+      }
+      if (scope.effect.ssml == null) {
+        scope.effect.ssml = ctrl.defaultSettings.ssml;
+      }
+      if (scope.effect.waitForPlayback == null) {
+        scope.effect.waitForPlayback = ctrl.defaultSettings.waitForPlayback;
+      }
     };
-    //$scope.$onInit = () => {
-    //  if (!$scope.effect) {
-    //    $scope.effect = $scope.defaultSettings;
-    //  }
-    //  if (!$scope.effect.text) {
-    //    $scope.effect.text = $scope.defaultSettings.text;
-    //  }
-    //  if (!$scope.effect.voice) {
-    //    $scope.effect.voice = $scope.defaultSettings.voice;
-    //  }
-    //  if (!$scope.effect.language) {
-    //    $scope.effect.language = $scope.dataProvider.getVoiceLanguageSync($scope.effect.voice).id;
-    //  }
-    //  if ($scope.effect.effectPitch == null || !Number.isFinite($scope.effect.effectPitch) || $scope.effect.effectPitch < -20.0 || $scope.effect.effectPitch > 20.0) {
-    //    $scope.effect.effectPitch = $scope.defaultSettings.effectPitch;
-    //  }
-    //  if ($scope.effect.effectProfiles == null || $scope.effect.effectProfiles.some(ep => !Object.values(EAudioProfile).includes(ep))) {
-    //    $scope.effect.effectProfiles = $scope.defaultSettings.effectProfiles;
-    //  }
-    //  if ($scope.effect.effectRate == null || !Number.isFinite($scope.effect.effectRate) || $scope.effect.effectRate < 0.25 || $scope.effect.effectRate > 4.0) {
-    //    $scope.effect.effectRate = $scope.defaultSettings.effectRate;
-    //  }
-    //  if ($scope.effect.effectVolume == null || !Number.isFinite($scope.effect.effectVolume) || $scope.effect.effectVolume < -96.0 || $scope.effect.effectVolume > 16.0) {
-    //    $scope.effect.effectVolume = $scope.defaultSettings.effectVolume;
-    //  }
-    //  if ($scope.effect.outputVolume == null || !Number.isFinite($scope.effect.outputVolume) || $scope.effect.outputVolume < 1 || $scope.effect.outputVolume > 10) {
-    //    $scope.effect.outputVolume = $scope.defaultSettings.outputVolume;
-    //  }
-    //  if ($scope.effect.audioFormat == null || $scope.effect.audioFormat === EAudioEncoding.unspecified) {
-    //    $scope.effect.audioFormat = EAudioEncoding.oggopus;
-    //  }
-    //  if ($scope.effect.apiVersion == null || $scope.effect.apiVersion === EApiVersion.unknown) {
-    //    $scope.effect.apiVersion = EApiVersion.v1;
-    //  }
-    //  if ($scope.effect.ssml === null || $scope.effect.ssml === undefined) {
-    //    $scope.effect.ssml = $scope.defaultSettings.ssml;
-    //  } else {
-    //    const lstring = `${$scope.effect.ssml}`.toLowerCase();
-    //    if (lstring === "false") {
-    //      $scope.effect.ssml = false;
-    //    } else if (lstring === "true") {
-    //      $scope.effect.ssml = true;
-    //    } else {
-    //      $scope.effect.ssml = $scope.defaultSettings.ssml;
-    //    }
-    //  }
-    //  if ($scope.effect.waitForPlayback === null || $scope.effect.waitForPlayback === undefined) {
-    //    $scope.effect.waitForPlayback = $scope.defaultSettings.waitForPlayback;
-    //  } else {
-    //    const lString = `${$scope.effect.waitForPlayback}`.toLowerCase();
-    //    if (lString === "false") {
-    //      $scope.effect.waitForPlayback = false;
-    //    } else if (lString === "true") {
-    //      $scope.effect.waitForPlayback = true;
-    //    } else {
-    //      $scope.effect.waitForPlayback = $scope.defaultSettings.waitForPlayback;
-    //    }
-    //  }
-    //};
-    if (!scope.effect) {
-      scope.effect = scope.defaultSettings;
-    }
-    if (!scope.effect.text) {
-      scope.effect.text = scope.defaultSettings.text;
-    }
-    if (!scope.effect.voice) {
-      scope.effect.voice = scope.defaultSettings.voice;
-    }
-    if (!scope.effect.language) {
-      scope.effect.language = scope.dataProvider.language(scope.effect.voice)?.id ?? scope.defaultSettings.language;
-    }
-    if (scope.effect.effectPitch == null || !Number.isFinite(scope.effect.effectPitch) || scope.effect.effectPitch < -20.0 || scope.effect.effectPitch > 20.0) {
-      scope.effect.effectPitch = scope.defaultSettings.effectPitch;
-    }
-    if (scope.effect.effectProfiles == null || scope.effect.effectProfiles.some(ep => !Object.values(EAudioProfile).includes(ep))) {
-      scope.effect.effectProfiles = scope.defaultSettings.effectProfiles;
-    }
-    if (scope.effect.effectRate == null || !Number.isFinite(scope.effect.effectRate) || scope.effect.effectRate < 0.25 || scope.effect.effectRate > 4.0) {
-      scope.effect.effectRate = scope.defaultSettings.effectRate;
-    }
-    if (scope.effect.effectVolume == null || !Number.isFinite(scope.effect.effectVolume) || scope.effect.effectVolume < -96.0 || scope.effect.effectVolume > 16.0) {
-      scope.effect.effectVolume = scope.defaultSettings.effectVolume;
-    }
-    if (scope.effect.outputVolume == null || !Number.isFinite(scope.effect.outputVolume) || scope.effect.outputVolume < 1 || scope.effect.outputVolume > 10) {
-      scope.effect.outputVolume = scope.defaultSettings.outputVolume;
-    }
-    if (scope.effect.audioFormat == null || scope.effect.audioFormat === EAudioEncoding.unspecified) {
-      scope.effect.audioFormat = EAudioEncoding.oggopus;
-    }
-    if (scope.effect.apiVersion == null || scope.effect.apiVersion === EApiVersion.unknown) {
-      scope.effect.apiVersion = EApiVersion.v1;
-    }
-    if (scope.effect.ssml === null || scope.effect.ssml === undefined) {
-      scope.effect.ssml = scope.defaultSettings.ssml;
-    } else {
-      const lstring = `${scope.effect.ssml}`.toLowerCase();
-      if (lstring === "false") {
-        scope.effect.ssml = false;
-      } else if (lstring === "true") {
-        scope.effect.ssml = true;
-      } else {
-        scope.effect.ssml = scope.defaultSettings.ssml;
-      }
-    }
-    if (scope.effect.waitForPlayback === null || scope.effect.waitForPlayback === undefined) {
-      scope.effect.waitForPlayback = scope.defaultSettings.waitForPlayback;
-    } else {
-      const lString = `${scope.effect.waitForPlayback}`.toLowerCase();
-      if (lString === "false") {
-        scope.effect.waitForPlayback = false;
-      } else if (lString === "true") {
-        scope.effect.waitForPlayback = true;
-      } else {
-        scope.effect.waitForPlayback = scope.defaultSettings.waitForPlayback;
-      }
-    }
   },
   optionsValidator: (effect) => {
     const errors = [];
-    if (effect === null) {
+    if (effect == null) {
       errors.push("Something went wrong internally, as the effect is null");
       return errors;
     }
@@ -494,8 +399,10 @@ const synthesizeEffect: Effects.EffectType<EffectModel, SoundDataModel> = {
     if (effect.voice.length < 4) {
       errors.push("Please select a voice to use.");
     }
-    if (effect.audioFormat === EAudioEncoding.mp364 && effect.apiVersion !== EApiVersion.v1b1) {
-      errors.push("MP3 64kbps encoding is not available without using the v1beta1 API");
+    if (effect.audioFormat === "MP3_64_KBPS" && effect.apiVersion !== "v1b1") {
+      errors.push("MP3 64 kbps encoding is not available outside of the v1beta1 API");
+    } else if (effect.audioFormat !== undefined && !formatDefinitions.some(fdef => fdef.id === effect.audioFormat)) {
+      errors.push(`Unknown audio format ${effect.audioFormat}`);
     }
     if (effect.effectPitch && (!Number.isFinite(effect.effectPitch) || effect.effectPitch < -20 || effect.effectPitch > 20)) {
       errors.push("Pitch effect is outside the acceptable range of -20 to 20");
@@ -507,35 +414,38 @@ const synthesizeEffect: Effects.EffectType<EffectModel, SoundDataModel> = {
       errors.push("Amplitude effect is outside the acceptable range of -96 to 16");
     }
 
-    // TODO: verify audioEncoding
     return errors;
   },
   onTriggerEvent: async (event) => {
     if (!folders || !modules || !settings) {
       throw new Error("Plugin appears to have been unloaded, cannot continue");
     }
-    const { effect, sendDataToOverlay, trigger } = event;
-    const { frontendCommunicator, httpServer, path, resourceTokenManager } = modules;
+    const { effect } = event;
+    const { frontendCommunicator, /*httpServer,*/ path, resourceTokenManager } = modules;
     const { tmpDir } = folders;
-    const audioFormat = effect.audioFormat == null || effect.audioFormat === EAudioEncoding.unspecified ? EAudioEncoding.oggopus : effect.audioFormat;
+    const audioFormat = formatDefinitions.find(fmtDef => fmtDef.id === effect.audioFormat || "OGG_OPUS");
+    if (!audioFormat) {
+      throw new Error(`Unknown audio format requested: ${(effect.audioFormat ?? "empty")}`);
+    }
 
     // Step 1: synthesize audio and write it to a file.
-    const fileExt = audioFormats.find(af => af.id === audioFormat)?.fileExtension || "ogg";
-    const filePath = path.join(tmpDir, `tts${uuid()}.${fileExt}`);
+    const filePath = path.join(tmpDir, `tts${uuid()}.${audioFormat.fileExtension}`);
     try {
       const api = effect.apiVersion === 'v1b1' ? gcp.textToSpeech.v1beta1 : gcp.textToSpeech.v1;
-      const synthInput = effect.ssml === true ? { ssml: effect.text } : { text: effect.text };
-      const audioContent = await api.text.synthesize(synthInput,
+      const audioContent = await api.text.synthesize(
         {
-          languageCode: effect.language,
+          ...(effect.ssml === true && { ssml: effect.text } || { text: effect.text }),
+        },
+        {
+          languageCode: effect.language ?? dataProvider?.language(effect.voice)?.id ?? "",
           name: effect.voice,
         },
         {
-          audioEncoding: audioFormat,
-          effectsProfileId: effect.effectProfiles != null && effect.effectProfiles.length > 0 ? effect.effectProfiles : undefined,
-          pitch: effect.effectPitch !== null ? effect.effectPitch : undefined,
-          speakingRate: effect.effectRate !== null ? effect.effectRate : undefined,
-          volumeGainDb: effect.effectVolume !== null ? effect.effectVolume : undefined,
+          audioEncoding: audioFormat.id as EAudioEncoding,
+          ...(effect.effectProfiles !== undefined && effect.effectProfiles.length > 0 && { effectsProfileId: effect.effectProfiles as EAudioProfile[] }),
+          ...(effect.effectPitch !== undefined && effect.effectPitch !== 0 && { pitch: effect.effectPitch }),
+          ...(effect.effectRate !== undefined && effect.effectRate !== 1 && { speakingRate: effect.effectRate }),
+          ...(effect.effectVolume !== undefined && effect.effectVolume !== 0 && { volumeGainDb: effect.effectVolume }),
         });
       if (audioContent == null || audioContent.length < 1) {
         logger.warn("Received null from synthesizeText");
@@ -554,7 +464,7 @@ const synthesizeEffect: Effects.EffectType<EffectModel, SoundDataModel> = {
     try {
       // get the duration of this sound file
       durationInSeconds = await frontendCommunicator.fireEventAsync<number>(
-        "getSoundDuration", { format: fileExt, path: filePath },
+        "getSoundDuration", { format: audioFormat.fileExtension, path: filePath },
       );
     } catch (err) {
       logger.exception("Error determining audio file duration", err as Error);
@@ -568,14 +478,14 @@ const synthesizeEffect: Effects.EffectType<EffectModel, SoundDataModel> = {
 
     // Step 3: play it
     try {
-      const soundData: SoundDataModel = {
-        audioOutputDevice: (effect.audioOutputDevice?.label && effect.audioOutputDevice.label !== "App Default")
+      const soundData: ISoundDataModel = {
+        audioOutputDevice: (effect.audioOutputDevice && effect.audioOutputDevice.label !== "App Default")
           ? effect.audioOutputDevice
           : settings.getAudioOutputDevice(),
         filepath: filePath,
-        format: "mp3",
+        format: audioFormat.fileExtension,
         maxSoundLength: durationInSeconds,
-        volume: effect.outputVolume ?? 5.0,
+        volume: effect.outputVolume ?? defaultSettings.outputVolume ?? 7,
       };
 
       // actually play the TTS audio

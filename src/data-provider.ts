@@ -7,10 +7,8 @@ import {
   EVoicePricingTier,
   EVoiceTechnology,
   ExtendedVoiceInfo,
-  IDataProvider,
   LocaleInfo,
   VoiceInfo,
-  VoiceSelectorParams,
 } from "./types";
 
 import localesJson from "../data/locales.json";
@@ -26,6 +24,13 @@ type PluginDataModel = {
   locales: LocaleInfo[],
   voices: VoiceInfo[],
 };
+type VoiceSelectorParams = {
+  gender?: ESsmlVoiceGender | null,
+  langCode?: string | null,
+  name?: string | null,
+  pricing?: EVoicePricingTier | null,
+  technology?: EVoiceTechnology | null,
+};
 
 const dataFileName = "gttsdata.json";
 const logger = new ContextLogger("data");
@@ -40,7 +45,7 @@ const writeDelaySeconds = 10 * 1000;
  *
  * It will not retain data in-memory, and everything about it is designed to be async to/from disk.
  */
-export class DataProvider implements IDataProvider {
+export class DataProvider {
   private _data: PluginDataModel;
   private readonly _dataFilePath: string;
   private _writeTimeout?: NodeJS.Timeout;

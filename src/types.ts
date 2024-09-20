@@ -154,64 +154,6 @@ export type VoicesInfo = {
   voices: VoiceInfo[];
 };
 
-/** Parameters for the filtering of voices. */
-export type VoiceSelectorParams = {
-  /** The SSML gender of the desired voice(s). */
-  gender?: ESsmlVoiceGender | null,
-  /** A language code that the desired voice(s) support. */
-  langCode?: string | null,
-  /** The name in whole or in part of the desired voice(s). */
-  name?: string | null,
-  /** The pricing tier of the desired voice(s). */
-  pricing?: EVoicePricingTier | null,
-  /** The technology that the desired voice(s) utilize. */
-  technology?: EVoiceTechnology | null,
-};
-
-/** Plugin data de/serialization provider. */
-export interface IDataProvider {
-  /** Get the date that we last checked github for updates to this plugin. */
-  get lastUpdateCheck(): Date | null;
-  /** Set the date that we last checked github for updates to this plugin. */
-  set lastUpdateCheck(date: Date | null);
-
-  /** Get the date that we last pulled the voices list from Google's TTS API. */
-  get lastVoiceUpdate(): Date | null;
-  /** Set the date that we last pull the voices list from Google's TTS API. */
-  set lastVoiceUpdate(date: Date | null);
-
-  /** Get a list of known locale information, such as [ id: "en-US", desc: "English (United States)" ]. */
-  get locales(): LocaleInfo[];
-  /** Set the list of known locale information, such as [ id: "en-US", desc: "English (United States)" ]. */
-  set locales(locales: LocaleInfo[]);
-
-  /** Get a list of known Google TTS voices. */
-  get voices(): VoiceInfo[];
-  /** Set the list of known Google TTS voices. */
-  set voices(voices: VoiceInfo[]);
-
-  /**
-   * Get the language details of the specified voice.
-   * @param voiceName The name of the voice to get the language code from.
-   */
-  language(voiceName: string): LocaleInfo | undefined;
-  /**
-   * Get the pricing tier of the specified voice.
-   * @param voiceName The name of the voice to get the pricing tier enumeration from.
-   */
-  pricingTier(voiceName: string): EVoicePricingTier;
-  /**
-   * Get the synthesizer technology utilized by the specified voice.
-   * @param voiceName The name of the voice to get the synthesizer technology enumeration from.
-   */
-  technology(voiceName: string): EVoiceTechnology;
-  /**
-   * Get all available information about a selection of Google TTS voices.
-   * @param voiceSelector Selection criteria for the voice(s) to return. Filter voices by gender, language code, voice name, pricing, or technology.
-   */
-  voiceInfo(voiceSelector?: VoiceSelectorParams): ExtendedVoiceInfo[];
-};
-
 
 /** Parameters used by the firebot-google-tts-revised plugin. */
 export interface IPluginParams extends Record<string, unknown> {
