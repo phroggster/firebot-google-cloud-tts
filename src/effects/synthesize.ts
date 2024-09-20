@@ -280,7 +280,7 @@ const synthesizeEffect: Effects.EffectType<EffectModel, SoundDataModel> = {
       throw new Error("$scope data provider undefined");
     }
 
-    scope.allVoices = dataProvider?.getAllVoicesSync() ?? [];
+    scope.allVoices = dataProvider?.voices ?? [];
     scope.defaultSettings = Object.freeze<EffectModel>({
       text: "",
       voice: "en-US-Neural2-C",
@@ -433,7 +433,7 @@ const synthesizeEffect: Effects.EffectType<EffectModel, SoundDataModel> = {
       scope.effect.voice = scope.defaultSettings.voice;
     }
     if (!scope.effect.language) {
-      scope.effect.language = scope.dataProvider.getVoiceLanguageSync(scope.effect.voice)?.id ?? scope.defaultSettings.language;
+      scope.effect.language = scope.dataProvider.language(scope.effect.voice)?.id ?? scope.defaultSettings.language;
     }
     if (scope.effect.effectPitch == null || !Number.isFinite(scope.effect.effectPitch) || scope.effect.effectPitch < -20.0 || scope.effect.effectPitch > 20.0) {
       scope.effect.effectPitch = scope.defaultSettings.effectPitch;

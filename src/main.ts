@@ -10,7 +10,6 @@ import { DataProvider } from "./data-provider";
 import {
   EUpdateCheckFrequency,
   IPluginParams,
-  IDataProvider,
   PluginFolders,
 } from "./types";
 
@@ -18,7 +17,7 @@ export let modules: ScriptModules | null = null;
 export let settings: FirebotSettings | null = null;
 export let pluginParams: IPluginParams | null = null;
 export let folders: PluginFolders | null = null;
-export let dataProvider: IDataProvider | null = null;
+export let dataProvider: DataProvider | null = null;
 
 const script: Firebot.CustomScript<IPluginParams> = {
   getDefaultParameters: () => {
