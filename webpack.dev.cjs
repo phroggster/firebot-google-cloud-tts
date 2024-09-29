@@ -27,15 +27,16 @@ module.exports = {
     ],
   },
   optimization: {
-    minimize: true,
+    minimize: false,
 
     minimizer: [
       new TerserPlugin({
         terserOptions: {
+          // eslint-disable-next-line camelcase
           keep_fnames: /main/,
           mangle: false,
           format: {
-            comments: false,
+            comments: true,
           },
         },
         extractComments: false,

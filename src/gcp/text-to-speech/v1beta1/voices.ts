@@ -1,14 +1,22 @@
 import axios, { AxiosError } from "axios";
 
-import gcpapi from "../../";
+import gcpapi from "../..";
 import { ContextLogger } from "../../../context-logger";
-import { VoiceInfo, VoicesInfo } from "../../../types";
-
-const logger = new ContextLogger("api.v1b1.voices");
 
 // Provides the text-to-speech/v1beta1/voices API endpoint.
 // https://cloud.google.com/text-to-speech/docs/reference/rest/v1beta1/voices
 
+type VoiceInfo = {
+  languageCodes: string[];
+  name: string;
+  ssmlGender: "SSML_VOICE_GENDER_UNSPECIFIED" | "FEMALE" | "MALE" | "NEUTRAL";
+  naturalSampleRateHertz: number;
+};
+type VoicesListResponse = {
+  voices: VoiceInfo[];
+};
+
+/** The Google text-to-speech v1beta1/voices API endpoint. */
 export const voices = {
   /**
    * Returns a list of the voices supported for speech synthesis.
@@ -16,22 +24,26 @@ export const voices = {
    * @see https://cloud.google.com/text-to-speech/docs/reference/rest/v1beta1/voices/list
    */
   async list(languageCode?: string): Promise<VoiceInfo[]> {
-    const integration = gcpapi.integrations[0];
-    if (!integration || !integration.integration || !integration.integration.connected || !integration.definition || !integration.definition.accountId) {
+    const logger = new ContextLogger("gcptts.v1.voices.list");
+
+    const integrations = gcpapi.connectedIntegrations;
+    if (integrations.length === 0) {
+      logger.warn("No integrations are available, unable to list voices");
       return [];
     }
 
+    // TODO: mixed-mode integration
     try {
       const langParam = languageCode && languageCode.length >= 2 ? `&languageCode=${encodeURIComponent(languageCode)}}` : "";
-      const response = await axios.get<VoicesInfo>(`https://texttospeech.googleapis.com/v1beta1/voices?key=${integration.definition.accountId}${langParam}`, {
+      const response = await axios.get<VoicesListResponse>(`https://texttospeech.googleapis.com/v1beta1/voices?key=${integrations[0].definition.accountId}${langParam}`, {
         headers: {
           "Accept": "application/json",
           "User-Agent": gcpapi.userAgent,
         },
       });
-      return response.data?.voices;
+      return response.data?.voices ?? [];
     } catch (err) {
-      logger.exception(`Failed to list voices, code ${(err as AxiosError)?.code}`, err as Error);
+      logger.errorEx(`Failed to list voices, code ${(err as AxiosError).code}`, err as Error);
     }
     return [];
   },

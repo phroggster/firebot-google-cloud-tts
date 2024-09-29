@@ -1,40 +1,37 @@
 import { ScriptModules } from "@crowbartools/firebot-custom-scripts-types";
 import fs from "fs";
+import { JsonDB } from "node-json-db";
+import { Config as JsonDBConfig } from "node-json-db/dist/lib/JsonDBConfig";
 
 import { ContextLogger } from "./context-logger";
 import {
-  ESsmlVoiceGender,
-  EVoicePricingTier,
-  EVoiceTechnology,
   ExtendedVoiceInfo,
   LocaleInfo,
   VoiceInfo,
+  VoicePricingTier,
+  VoiceType,
 } from "./types";
 
 import localesJson from "../data/locales.json";
 import voicesJson from "../data/voices.json";
-import { folders } from "./main";
 
-type UpdateCheckData = {
+type LastUpdateCheckDataModel = {
   plugin?: Date,
   voices?: Date,
 };
+/** The desired shape of the JSON db on-disk. */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 type PluginDataModel = {
-  lastChecks?: UpdateCheckData,
+  lastChecks?: LastUpdateCheckDataModel,
   locales: LocaleInfo[],
   voices: VoiceInfo[],
 };
-type VoiceSelectorParams = {
-  gender?: ESsmlVoiceGender | null,
-  langCode?: string | null,
-  name?: string | null,
-  pricing?: EVoicePricingTier | null,
-  technology?: EVoiceTechnology | null,
+type ReplaceVoicesResult = {
+  newVoiceNames: string[];
+  removedVoiceNames: string[];
 };
 
-const dataFileName = "gttsdata.json";
-const logger = new ContextLogger("data");
-const writeDelaySeconds = 10 * 1000;
+const datastoreFilename = "gttsdata.json";
 
 /**
  * A repository for maintaining the data files and settings that the plugin utilizes.
@@ -46,137 +43,289 @@ const writeDelaySeconds = 10 * 1000;
  * It will not retain data in-memory, and everything about it is designed to be async to/from disk.
  */
 export class DataProvider {
-  private _data: PluginDataModel;
+  private readonly _db: JsonDB;
+  /** The path to the folder where temporary audio files will be downloaded to, played from, and deleted. */
+  private readonly _audioFolderPath: string;
+  /** The path to the data store file on disk. */
   private readonly _dataFilePath: string;
-  private _writeTimeout?: NodeJS.Timeout;
+
+  private _writeDeadlineUtcMs: number | null = null;
+  private _writeTimeout: NodeJS.Timeout | null = null;
+
 
   /**
    * Constructs a new DataProvider persisting data in the specified path.
-   * @param dataFolder The location on-disk of where to store any data files.
+   * @param dataDir The location on-disk of where to store any data files.
+   * @param pluginsDir The location on-disk of where Firebot plugins are stored.
    * @param path A helper utility for safely concatenating filesystem paths.
    */
-  constructor(dataFolder: string, path: ScriptModules["path"]) {
-    this._dataFilePath = path.join(dataFolder, dataFileName);
-    this._writeTimeout = undefined;
+  constructor(pluginsDir: string, modules: ScriptModules) {
+    const logger = new ContextLogger("gcptts.data.ctor");
+    const { frontendCommunicator, path } = modules;
 
-    // Pre-fill storage cache from compiled data.
-    this._data = {
-      lastChecks: undefined,
-      locales: localesJson.locales,
-      voices: voicesJson.voices as VoiceInfo[],
-    };
+    this._audioFolderPath = path.join(pluginsDir, '..', '..', '..', '..', 'tmp', 'google-tts-revised');
+    this._dataFilePath = path.join(pluginsDir, datastoreFilename);
 
-    // Then either load it immediately, or queue a write for later.
+    // attach pertinent events.
+    frontendCommunicator.on("gcpttsGetLocales", (...args: unknown[]) => {
+      const localesList = this.locales;
+      logger.debug(`Received gcpttsGetLocales event with args "${args != null && args.length ? args : "(empty)"}", replying with ${localesList.length} items`);
+      return localesList;
+    });
+    frontendCommunicator.on("gcpttsGetVoices", (...args: unknown[]) => {
+      const extVoicesList = this.getAllExtendedVoices();
+      logger.debug(`Received gcpttsGetVoices event with args "${args != null && args.length ? args : "(empty)"}", replying with ${extVoicesList?.length} voices`);
+      return extVoicesList;
+    });
+
+    this._db = new JsonDB(new JsonDBConfig(this._dataFilePath, false, true, "/"));
     if (fs.existsSync(this._dataFilePath)) {
-      this._readDataFile();
-    } else {
-      this._writeTimeout = setTimeout(() => this._writeDataFile(), writeDelaySeconds);
+      try {
+        this._db.load();
+        if (this._db.exists("/locales") && this._db.exists("/voices")) {
+          return;
+        }
+      } catch {
+        this._db.resetData({});
+      }
     }
+
+    // Database either didn't exist, couldn't be loaded and got reset, or was missing a required property.
+    if (!this._db.exists("/locales")) {
+      try {
+        this._db.push("/locales", localesJson);
+      } catch (err) {
+        logger.warnEx("Failed to initialize /locales", err as Error);
+      }
+    }
+    if (!this._db.exists("/voices")) {
+      try {
+        this._db.push("/voices", voicesJson);
+      } catch (err) {
+        logger.warnEx("Failed to initialize /voices", err as Error);
+      }
+    }
+
+    this._setWriteTimeout(10 * 1000);
+  }
+
+  /** Get the path to the folder where audio files should be (temporarily) stored. */
+  get audioFolderPath(): string {
+    return this._audioFolderPath;
+  }
+
+  /** Get the full path to the JSON database file on-disk. */
+  get dataFilePath(): string {
+    return this._dataFilePath;
   }
 
   /** Get the date that we last checked github for updates to this plugin. */
   get lastUpdateCheck(): Date | null {
-    return this._data.lastChecks?.plugin ?? null;
-  }
-  /** Set the date that we last checked github for updates to this plugin. */
-  set lastUpdateCheck(date: Date | null) {
-    if (this._data.lastChecks !== undefined) {
-      if (date !== null) {
-        this._data.lastChecks.plugin = date;
-      } else if (this._data.lastChecks.voices === undefined) {
-        this._data.lastChecks = undefined;
-      } else {
-        this._data.lastChecks.plugin = undefined;
+    try {
+      if (this._db.exists("/lastChecks/plugin")) {
+        return this._db.getObject<Date>("/lastChecks/plugin") ?? null;
       }
-    } else if (date !== null) {
-      this._data.lastChecks = { plugin: date };
-    } else {
-      // lastChecks is undefined and date param is null.
-      return;
+    } catch {
     }
+    return null;
+  }
 
-    if (this._writeTimeout !== undefined) {
-      clearTimeout(this._writeTimeout);
+  /** Gets an object representing the last time we checked for plugin updates and voice updates. */
+  get lastUpdateChecks(): LastUpdateCheckDataModel | null {
+    try {
+      if (this._db.exists("/lastChecks")) {
+        return this._db.getObject<LastUpdateCheckDataModel>("/lastChecks") ?? null;
+      }
+    } catch {
     }
-
-    this._writeTimeout = setTimeout(() => this._writeDataFile(), writeDelaySeconds);
+    return null;
   }
 
   /** Get the date that we last pulled the voices list from Google's TTS API. */
-  get lastVoiceUpdate(): Date | null {
-    return this._data.lastChecks?.voices ?? null;
-  }
-  /** Set the date that we last pull the voices list from Google's TTS API. */
-  set lastVoiceUpdate(date: Date | null) {
-    if (this._data.lastChecks !== undefined) {
-      if (date !== null) {
-        this._data.lastChecks.voices = date;
-      } else if (this._data.lastChecks.plugin === undefined) {
-        this._data.lastChecks = undefined;
-      } else {
-        this._data.lastChecks.voices = undefined;
+  get lastVoicesCheck(): Date | null {
+    try {
+      if (this._db.exists("/lastChecks/voices")) {
+        return this._db.getObject<Date>("/lastChecks/voices") ?? null;
       }
-    } else if (date !== null) {
-      this._data.lastChecks = { voices: date };
-    } else {
-      // lastChecks is undefined and date param is null.
-      return;
+    } catch {
     }
-
-    if (this._writeTimeout !== undefined) {
-      clearTimeout(this._writeTimeout);
-    }
-
-    this._writeTimeout = setTimeout(() => this._writeDataFile(), writeDelaySeconds);
+    return null;
   }
 
   /** Get a list of known locale information, such as [ id: "en-US", desc: "English (United States)" ]. */
   get locales(): LocaleInfo[] {
-    return this._data.locales;
-  }
-  /** Set the list of known locale information, such as [ id: "en-US", desc: "English (United States)" ]. */
-  set locales(locales: LocaleInfo[]) {
-    if (this._writeTimeout !== undefined) {
-      clearTimeout(this._writeTimeout);
-      this._writeTimeout = undefined;
+    try {
+      if (this._db.exists("/locales")) {
+        return this._db.getObject<LocaleInfo[]>("/locales") ?? [];
+      }
+    } catch (err) {
+      const logger = new ContextLogger("gcptts.data.locales");
+      logger.warnEx("failed to get locales", err as Error, err as Error);
     }
-
-    this._data.locales = locales.filter(loc => loc.desc !== "" && loc.id !== "");
-
-    this._writeTimeout = setTimeout(() => this._writeDataFile(), writeDelaySeconds);
+    return localesJson.locales;
   }
 
   /** Get a list of known Google TTS voices. */
   get voices(): VoiceInfo[] {
-    return this._data.voices;
-  }
-  /** Set the list of known Google TTS voices. */
-  set voices(voices: VoiceInfo[]) {
-    if (this._writeTimeout !== undefined) {
-      clearTimeout(this._writeTimeout);
-      this._writeTimeout = undefined;
+    try {
+      return this._db.getObject<VoiceInfo[]>("/voices") ?? [];
+    } catch (err) {
+      const logger = new ContextLogger("gcptts.data.voices");
+      logger.warnEx("Failed to get voices", err as Error, err as Error);
     }
-
-    // The neutral enum value is marked as deprecated, so use a string to filter it out instead.
-    this._data.voices = voices.filter(voice =>
-      voice.languageCodes.length > 0 &&
-      voice.name !== "" &&
-      voice.naturalSampleRateHertz > 5512 && voice.naturalSampleRateHertz < 768000 &&
-      // eslint-disable-next-line comma-dangle
-      voice.ssmlGender !== "NEUTRAL"
-    );
-
-    this._writeTimeout = setTimeout(() => this._writeDataFile(), writeDelaySeconds);
+    return [];
   }
 
+  /** Write the database to disk immediately. */
+  flush(): void {
+    try {
+      this._db.save();
+    } catch (err) {
+      const logger = new ContextLogger("gcptts.data.flush");
+      logger.warnEx("Failed to non-forcibly flush database", err as Error, err as Error);
+    }
+  }
+
+  /** Gets all voices and their language information. */
+  getAllExtendedVoices(): ExtendedVoiceInfo[] {
+    try {
+      const voices = this._db.getObject<VoiceInfo[]>("/voices");
+      return voices
+        .map((voice) => {
+          return {
+            ...voice,
+            localeInfo: this.voiceLocaleInfo(voice.name),
+          };
+        })
+        .filter(voiceWithLocaleInfo => voiceWithLocaleInfo && voiceWithLocaleInfo.localeInfo && voiceWithLocaleInfo.localeInfo.id && voiceWithLocaleInfo.localeInfo.name)
+        .map((voiceWithLocaleInfo) => {
+          return {
+            gender: voiceWithLocaleInfo.ssmlGender === "NEUTRAL" ? "SSML_VOICE_GENDER_UNSPECIFIED" : voiceWithLocaleInfo.ssmlGender,
+            // nulls are filtered just above this, and undefineds should never make here, but my IDE complains without the defensive nullish coalesce.
+            languageCode: voiceWithLocaleInfo.localeInfo?.id ?? "",
+            languageName: voiceWithLocaleInfo.localeInfo?.name ?? "",
+            name: voiceWithLocaleInfo.name,
+            pricing: this.voicePricing(voiceWithLocaleInfo.name),
+            sampleRate: voiceWithLocaleInfo.naturalSampleRateHertz,
+            type: this.voiceType(voiceWithLocaleInfo.name),
+          };
+        });
+    } catch {
+    }
+    return [];
+  }
+
+  /** Finds a locale's information by BCP-47 ID. */
+  getLocaleInfo(localeId: string): LocaleInfo | null {
+    const locales = this.locales.filter(loc => loc.id === localeId);
+    if (locales.length >= 1) {
+      // shortest locale id wins, sorry
+      return locales.sort((lhs, rhs) => {
+        if (lhs.id.length < rhs.id.length) {
+          return -1;
+        }
+        if (lhs.id.length > rhs.id.length) {
+          return 1;
+        }
+        return 0;
+      })[0];
+    }
+    return null;
+  }
+
+  /** Finds a voice's information by voice name. */
+  getVoiceInfo(voiceName: string): VoiceInfo | null {
+    const voices = this.voices.filter(voice => voice.name === voiceName);
+    if (voices.length >= 1) {
+      return voices[0];
+    }
+    return null;
+  }
 
   /**
-   * Get the language details of the specified voice.
+   * Check if a voice with the given name is saved in the data store. This is useful for checking if
+   * a voice name variable expanded legitimately, or if the effect should use the fallback voice.
+   * @param voiceName The name of the voice to check.
+   * @returns `true` if a voice with that name is listed in the data store; `false` otherwise.
+   */
+  isKnownVoiceName(voiceName: string): boolean {
+    // A dollar sign here... Did variable expansion mess up, or did the user?
+    if (!voiceName || voiceName.includes('$')) {
+      return false;
+    }
+    return this.voices.some(voice => voice.name === voiceName);
+  }
+
+  /**
+   * Replace locale information in the data store matching langCode (or all voices when undefined or "all") with the provided LocaleInfo array.
+   * @param localesToAdd The new locales to add or update.
+   * @param langCodeToReplace Optional Any language code starting with this value will be removed.
+   */
+  replaceLocales(localesToAdd: LocaleInfo[], langCodeToReplace?: string): void {
+    if (!localesToAdd || localesToAdd.length === 0) {
+      return;
+    }
+
+    const locales = this.locales.filter(locale => !langCodeToReplace || langCodeToReplace === "all" || locale.id.startsWith(langCodeToReplace));
+    locales.push(...localesToAdd);
+    locales.sort((lhs, rhs) => lhs.id.localeCompare(rhs.id));
+    try {
+      this._db.push("/locales", locales, true);
+      this._setWriteTimeout(10 * 1000);
+    } catch (err) {
+      const logger = new ContextLogger("gcptts.data.replaceLocales");
+      logger.warnEx(`Failed to add ${localesToAdd.length.toLocaleString()} locales for lang code "${(langCodeToReplace ? langCodeToReplace : "all")}`, err as Error, err as Error);
+    }
+  }
+
+  /**
+   * Replace the voices in the data store matching langCode (or all voices when undefined) with the provided voices array.
+   * @param newVoices An array of the voices that have been refreshed and should be added to the data store.
+   * @param langCode An optional BCP-47 language code of the subset of voices to replace.
+   * @returns Information about the added or removed entries.
+   */
+  replaceVoices(newVoices: VoiceInfo[], langCode?: "all" | string): ReplaceVoicesResult {
+    const result: ReplaceVoicesResult = {
+      newVoiceNames: [],
+      removedVoiceNames: [],
+    };
+    if (!newVoices || newVoices.length === 0) {
+      return result;
+    }
+
+    const startingVoices = this.voices;
+
+    // calculate the return value first
+    const voicesToDelete = startingVoices.filter(voice => voice.languageCodes.some(lc => !langCode || langCode === "all" || lc.startsWith(langCode)));
+    result.newVoiceNames = newVoices.filter(voice => !voicesToDelete.some(rem => rem.name === voice.name)).map(voice => voice.name);
+    result.removedVoiceNames = voicesToDelete.filter(voice => !newVoices.some(nvn => nvn.name === voice.name)).map(voice => voice.name);
+
+    // Then build the new data array
+    let voices = startingVoices.filter(voice => !voice.languageCodes.some(lc => !langCode || langCode === "all" || lc.startsWith(langCode)));
+    voices.push(...newVoices);
+    voices = voices.sort((lhs, rhs) => lhs.name.localeCompare(rhs.name));
+
+    try {
+      this._db.push("/voices", voices, true);
+      this._setWriteTimeout(10 * 1000);
+    } catch (err) {
+      const logger = new ContextLogger("gcptts.data.replaceVoices");
+      logger.warnEx("Failed to push to database, or save it to file", err as Error, err as Error);
+    }
+    return result;
+  }
+
+  /**
+   * Get the language/locale information from the provided voice name.
    * @param voiceName The name of the voice to get the language code from.
    * @returns The language and locale code, as well as the plain-text English description of that langCode.
    */
-  language(voiceName: string): LocaleInfo | undefined {
-    return this._data.locales.find(locale => voiceName.toLowerCase().startsWith(locale.id.toLowerCase()));
+  voiceLocaleInfo(voiceName: string): LocaleInfo | null {
+    const voice = this.getVoiceInfo(voiceName);
+    if (voice && voice.languageCodes.length > 0) {
+      return this.getLocaleInfo(voice.languageCodes[0]);
+    }
+    return null;
   }
 
   /**
@@ -184,26 +333,26 @@ export class DataProvider {
    * @param voiceName The name of the voice to get the pricing tier enumeration from.
    * @returns An EVoicePricingTier enumeration with the pricing tier of the specified voice.
    */
-  pricingTier(voiceName: string): EVoicePricingTier {
+  voicePricing(voiceName: string): VoicePricingTier {
     if (voiceName.includes("Casual")) {
-      // TODO: Not sure of the pricing tier for casual, but only news voices currently go up to K, so maybe that's correct?
-      return EVoicePricingTier.Studio;
+      // TODO: Not sure of the actual pricing tier for casual, but only news voices currently go up to K, so maybe that's correct?
+      return "Studio";
     } else if (voiceName.includes("Journey")) {
-      return EVoicePricingTier.Journey;
+      return "Journey";
     } else if (voiceName.includes("Neural2")) {
-      return EVoicePricingTier.Neural2;
+      return "Neural2";
     } else if (voiceName.includes("News")) {
-      return EVoicePricingTier.Studio;
+      return "Studio";
     } else if (voiceName.includes("Polyglot")) {
-      return EVoicePricingTier.Polyglot;
+      return "Polyglot";
     } else if (voiceName.includes("Standard")) {
-      return EVoicePricingTier.Standard;
+      return "Standard";
     } else if (voiceName.includes("Studio")) {
-      return EVoicePricingTier.Studio;
+      return "Studio";
     } else if (voiceName.includes("Wavenet")) {
-      return EVoicePricingTier.WaveNet;
+      return "Wavenet";
     }
-    return EVoicePricingTier.Unknown;
+    return "Unknown";
   }
 
   /**
@@ -211,189 +360,54 @@ export class DataProvider {
    * @param voiceName The name of the voice to get the synthesizer technology enumeration from.
    * @returns An EVoiceTechnology detailing the synthesize technology utilized by the specified voice.
    */
-  technology(voiceName: string): EVoiceTechnology {
-    const lname = voiceName.toLowerCase();
-    return Object.values(EVoiceTechnology).find((tech) => {
-      return lname.includes(tech.toLowerCase());
-    }) || EVoiceTechnology.Unknown;
+  voiceType(voiceName: string): VoiceType {
+    if (voiceName.includes("Casual")) {
+      return "Casual";
+    } else if (voiceName.includes("Journey")) {
+      return "Journey";
+    } else if (voiceName.includes("Neural2")) {
+      return "Neural2";
+    } else if (voiceName.includes("News")) {
+      return "News";
+    } else if (voiceName.includes("Polyglot")) {
+      return "Polyglot";
+    } else if (voiceName.includes("Standard")) {
+      return "Standard";
+    } else if (voiceName.includes("Studio")) {
+      return "Studio";
+    } else if (voiceName.includes("Wavenet")) {
+      return "Wavenet";
+    }
+    return "Unknown";
   }
 
-  /**
-   * Get all available information about a selection of Google TTS voices.
-   * @param voiceSelector
-   * @returns Selection criteria for the voice(s) to return. Filter by gender, language code, voice name, pricing, or technology.
-   */
-  voiceInfo(voiceSelector?: VoiceSelectorParams): ExtendedVoiceInfo[] {
-    // This isn't designed for filtering from the frontend. It's designed for some use case that I haven't come up with yet.
-    // But I guess it probably would be superb inside of a $ctrl.onInit().
-    let voices: ExtendedVoiceInfo[] | VoiceInfo[] = this._data.voices;
+  private _setWriteTimeout(maxAcceptableDelayInSeconds: number): void {
+    const nowMs = new Date().getUTCMilliseconds();
+    const oldDeadlineMs = this._writeDeadlineUtcMs ? this._writeDeadlineUtcMs : Number.MAX_SAFE_INTEGER;
+    maxAcceptableDelayInSeconds = Math.max(maxAcceptableDelayInSeconds, 0);
 
-    // VoiceInfo filters first, as those are cheap, and it will save pointless locale, pricing, and tech lookups.
-    if (voiceSelector !== null && voiceSelector !== undefined) {
-      if (voiceSelector.gender !== null && voiceSelector.gender !== undefined) {
-        const gender = voiceSelector.gender;
-        voices = voices.filter(voice => voice.ssmlGender === gender);
+    // flush now.
+    if (maxAcceptableDelayInSeconds <= 0 || oldDeadlineMs < nowMs) {
+      if (this._writeTimeout) {
+        clearTimeout(this._writeTimeout);
       }
+      this._writeDeadlineUtcMs = null;
+      this._writeTimeout = null;
+      this.flush();
+      return;
+    }
 
-      if (voiceSelector.langCode !== null && voiceSelector.langCode !== undefined && voiceSelector.langCode !== "") {
-        const llang = voiceSelector.langCode.toLowerCase();
-        voices = voices.filter(voice => voice.languageCodes.some(vlc => vlc.toLowerCase().includes(llang)));
+    const newDeadlineMs = maxAcceptableDelayInSeconds * 1000 + nowMs;
+
+    // new deadline wins out, tee it up
+    if (Math.min(newDeadlineMs, oldDeadlineMs) < oldDeadlineMs) {
+      if (this._writeTimeout) {
+        clearTimeout(this._writeTimeout);
       }
-
-      if (voiceSelector.name !== null && voiceSelector.name !== undefined && voiceSelector.name !== "") {
-        const vname = voiceSelector.name.toLowerCase();
-        voices = voices.filter((voice) => {
-          const lname = voice.name.toLowerCase();
-          return lname === vname || lname.includes(vname);
-        });
-      }
-    }
-
-    // Then build up ExtendedVoiceInfo
-    voices = voices
-      .map((voice) => {
-        return {
-          ...voice,
-          locInfo: this._getVoiceLocale(voice.name),
-        };
-      }).filter(voiceExt => voiceExt.locInfo !== null)
-      .map((vocWithLoc) => {
-        return {
-          gender: vocWithLoc.ssmlGender,
-          language: vocWithLoc.locInfo?.desc ?? "",
-          languageCode: vocWithLoc.locInfo?.id ?? "",
-          name: vocWithLoc.name,
-          pricing: this.pricingTier(vocWithLoc.name),
-          sampleRate: vocWithLoc.naturalSampleRateHertz,
-          technology: this.technology(vocWithLoc.name),
-        };
-      });
-
-    // Finish things up with the ExtendedVoiceInfo filters.
-    if (voiceSelector !== null && voiceSelector !== undefined) {
-      if (voiceSelector.pricing !== null && voiceSelector.pricing !== undefined) {
-        const pricing = voiceSelector.pricing;
-        voices = voices.filter(voice => voice.pricing === pricing);
-      }
-
-      if (voiceSelector.technology !== null && voiceSelector.technology !== undefined) {
-        // Vroom vroom.
-        const vtech = voiceSelector.technology;
-        voices = voices.filter(voice => voice.technology === vtech);
-      }
-    }
-
-    return voices;
-  }
-
-
-  private _getVoiceLocale(voiceName: string): LocaleInfo | null {
-    const lname = voiceName.toLowerCase();
-    return this._data.locales.find(locale => lname.startsWith(locale.id.toLowerCase())) || null;
-  }
-
-  private _readDataFile(): boolean {
-    type NullableLocaleInfo = {
-      id?: string | null;
-      desc?: string | null;
-    };
-    type NullableUpdatesData = {
-      plugin?: Date | null,
-      voices?: Date | null,
-    };
-    type NullableVoiceInfo = {
-      languageCodes?: string[] | null;
-      name?: string | null;
-      ssmlGender?: ESsmlVoiceGender | null;
-      naturalSampleRateHertz?: number | null;
-    }
-    type NullablePluginDataModel = {
-      lastChecks?: NullableUpdatesData | null,
-      locales?: NullableLocaleInfo[] | null,
-      voices?: NullableVoiceInfo[] | null,
-    };
-
-    if (!fs.existsSync(this._dataFilePath)) {
-      return false;
-    }
-
-    let fileContents: string;
-    try {
-      fileContents = fs.readFileSync(this._dataFilePath, { encoding: "utf-8" });
-    } catch (err) {
-      logger.exception(`Failed to read plugin data store from "${this._dataFilePath}"`, err as Error);
-      return false;
-    }
-
-    if (!fileContents) {
-      logger.error(`Failed to read plugin data store from "${this._dataFilePath}"`);
-      return false;
-    }
-
-    let dataStore: NullablePluginDataModel;
-    try {
-      dataStore = (JSON.parse(fileContents) as NullablePluginDataModel);
-    } catch (err) {
-      logger.exception(`Failed to parse plugin data store from "${this._dataFilePath}"`, err as Error);
-      return false;
-    }
-
-    if (!dataStore) {
-      logger.warn(`Failed to parse plugin data store from "${this._dataFilePath}"`);
-      return false;
-    }
-
-
-    if (dataStore.lastChecks && (dataStore.lastChecks.plugin || dataStore.lastChecks.voices)) {
-      if (this._data.lastChecks === undefined) {
-        this._data.lastChecks = {};
-      }
-      if (dataStore.lastChecks.plugin) {
-        this._data.lastChecks.plugin = dataStore.lastChecks.plugin;
-      }
-      if (dataStore.lastChecks.voices) {
-        this._data.lastChecks.voices = dataStore.lastChecks.voices;
-      }
-    }
-
-    if (dataStore.locales && dataStore.locales.length > 0) {
-      this._data.locales = dataStore.locales.filter(loc => loc && loc.desc && loc.id) as LocaleInfo[];
-    }
-
-    if (dataStore.voices != null && dataStore.voices.length > 0) {
-      this._data.voices = dataStore.voices.filter(voice => voice && voice.languageCodes && voice.languageCodes.length > 0 && voice.name && voice.naturalSampleRateHertz && voice.ssmlGender) as VoiceInfo[];
-    }
-
-    logger.debug(`Loaded data store from "${this._dataFilePath}"`);
-    return true;
-  }
-
-  private _writeDataFile(): boolean {
-    this._writeTimeout = undefined;
-
-    if (folders === null || folders.dataDir.length === 0) {
-      logger.error("Unknown data storage location, unable to write data file");
-      return false;
-    }
-
-    if (!fs.existsSync(folders.dataDir)) {
-      try {
-        fs.mkdirSync(folders.dataDir, { mode: 0o755, recursive: true });
-        logger.debug("Created persistent data folder");
-      } catch (err) {
-        logger.exception(`Failed to create persistent data folder at "${folders.dataDir}", will be unable to write data`, err as Error);
-        return false;
-      }
-    }
-
-    try {
-      fs.writeFileSync(this._dataFilePath, JSON.stringify(this._data, null, 2), { encoding: "utf-8", flush: true, mode: 0o644 });
-      logger.debug("Wrote persistent plugin data file");
-      return true;
-    } catch (err) {
-      this._writeTimeout = setTimeout(() => this._writeDataFile(), 30000);
-      logger.exception(`Failed to persist plugin data to "${this._dataFilePath}", will try again in 30 seconds`, err as Error);
-      return false;
+      this._writeDeadlineUtcMs = new Date(newDeadlineMs).getUTCMilliseconds();
+      this._writeTimeout = setTimeout(() => {
+        this.flush();
+      }, newDeadlineMs - nowMs);
     }
   }
 }

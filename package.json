@@ -24,8 +24,8 @@
   ],
   "main": "",
   "scripts": {
-    "build": "webpack -c webpack.min.cjs",
-    "build:dev": "webpack -c webpack.dev.cjs && npm run copy",
+    "build": "webpack -c webpack.min.cjs --stats",
+    "build:dev": "webpack -c webpack.dev.cjs --stats && npm run copy",
     "copy": "node ./scripts/copy-build.js",
     "lint": "eslint src/ tests/",
     "lint:fix": "eslint --fix src/ tests/",
@@ -50,13 +50,15 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
-    "axios": "^0.21.1",
-    "semver": "^7.6.2",
-    "tiny-typed-emitter": "^2.1.0",
-    "uuid": "^3.3.3"
+    "axios": "0.21.4",
+    "client-oauth2": "4.3.3",
+    "node-json-db": "1.6.0",
+    "semver": "7.6.3",
+    "tiny-typed-emitter": "2.1.0",
+    "uuid": "3.4.0"
   },
   "volta": {
     "node": "20.14.0",
-    "npm": "10.8.1"
+    "npm": "10.8.3"
   }
 }

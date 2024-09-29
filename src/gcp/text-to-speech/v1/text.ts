@@ -1,77 +1,60 @@
 import axios, { AxiosError } from "axios";
 
-import gcp from "../../";
+import gcp from "../..";
 import { ContextLogger } from "../../../context-logger";
-import { EAudioEncoding, EAudioProfile, ESsmlVoiceGender } from "../../../types";
 
 // Provides the text-to-speech/v1/text API endpoint.
 // https://cloud.google.com/text-to-speech/docs/reference/rest/v1/text
 
-const logger = new ContextLogger("api.v1.text");
 
-/** Speech synthesis markup language (SSML) synthesis request data. */
 type SsmlInput = {
-  /** The speech synthesis markup language (SSML) describing the text to synthesize. */
   ssml: string
 };
-/** Plain text speech synthesis request data. */
 type TextInput = {
-  /** The plain text of the speech to synthesize. */
   text: string
 };
-/**
- * Text or speech synthesis markup language (SSML) input to be synthesized into speech.
- * @see https://cloud.google.com/text-to-speech/docs/reference/rest/v1/SynthesisInput */
 type SynthesisInput = SsmlInput | TextInput;
-
-/** @see https://cloud.google.com/text-to-speech/docs/reference/rest/Shared.Types/CustomVoiceParams */
 type CustomVoiceParams = {
-  /** Required: the name of the AutoML model that synthesizes the custom voice. */
   model: string;
   /** @deprecated */
   reportedUsage: string;
 };
-/** @see https://cloud.google.com/text-to-speech/docs/reference/rest/Shared.Types/StreamingSynthesizeConfig#VoiceSelectionParams */
 type VoiceSelectionParams = {
-  /** Optional: the configuration for selecting a custom voice. */
   customVoice?: CustomVoiceParams;
-  /** Required: The BCP-47 language and optional region code (but not a script code!) of the voice to be used. */
   languageCode: string;
-  /** Optional: The name of the voice to use. */
   name?: string;
-  /** Optional: The preferred gender of the voice. */
-  ssmlGender?: ESsmlVoiceGender;
+  ssmlGender?: "SSML_VOICE_GENDER_UNSPECIFIED" | "FEMALE" | "MALE";
 };
-
-/** @see https://cloud.google.com/text-to-speech/docs/reference/rest/v1/AudioConfig */
+type AudioEffectProfile = "handset-class-device" | "headphone-class-device" | "large-automotive-class-device" | "large-home-entertainment-class-device" | "medium-bluetooth-speaker-class-device" | "small-bluetooth-speaker-class-device" | "telephony-class-application" | "wearable-class-device";
 type AudioConfig = {
-  /** Required. The format of the audio byte stream. */
-  audioEncoding: EAudioEncoding;
-  /** Optional. */
-  effectsProfileId?: EAudioProfile[];
-  /** Optional. Speaking pitch, in the range of -20.0 to 20.0, with 0.0 as the native default speed. 5.0 would increase the voice pitch 5 semitones, while -5.0 would decrease the voice pitch 5 semitones. */
+  audioEncoding: "ALAW" | "LINEAR16" | "MP3" | "MULAW" | "OGG_OPUS";
+  effectsProfileId?: AudioEffectProfile[];
   pitch?: number;
-  /** Optional. The sample rate of the generated audio. Leave undefined, or specify the default sampling rate of the selected voice, for the best audio quality. */
   sampleRateHertz?: number;
-  /** Optional. Speaking rate or speed, in the range of 0.25 to 4.0, with 1.0 as the native default speed. 2.0 would speak twice as fast, and 0.5 would speak half as fast. */
   speakingRate?: number;
-  /** Optional. The apparant amplitude to apply to the voice sample, in the range of -96.0 to 16.0, with 0.0 as the default. -6.0 would seem to be half the amplitude of the deafult, with 6.0 appearing as double the amplitude.
-   * Do not provide values larger than 10.0, or the audio quality will be significantly degraded.
-   */
   volumeGainDb?: number;
 };
-
 type TextSynthesizeResponse = {
-  /** Base64-encoded audio data. */
   audioContent: string;
 };
 
+/** The Google text-to-speech v1/text API endpoint. */
 export const text = {
+  /**
+   * Synthesize speech using the v1 text-to-speech API on the Google Cloud Platform.
+   * @param input The text to be synthesized into speech.
+   * @param voice The voice to use for speech synthesis.
+   * @param audioConfig Information about the desired audio format and any effects to apply to it.
+   * @returns A base64-encoded audio file of the specified type, or null.
+   * @see https://cloud.google.com/text-to-speech/docs/reference/rest/v1/text/synthesize
+   */
   async synthesize(
     input: SynthesisInput,
     voice: VoiceSelectionParams,
     audioConfig: AudioConfig,
   ): Promise<string | null> {
+    const logger = new ContextLogger("gcptts.v1.text.synth");
+
     if (!input) {
       throw new Error("'input' parameter null or undefined");
     } else if ((input as SsmlInput) != null && (input as TextInput) != null) {
@@ -102,9 +85,9 @@ export const text = {
       throw new Error(`volume gain parameter is out of range; got ${audioConfig.volumeGainDb}, but must be between -96 and 16`);
     }
 
-    const integrations = gcp.integrations;
+    const integrations = gcp.connectedIntegrations;
     if (integrations.length < 1) {
-      logger.warn("Auth integration is unavailable, unable to synthesize speech");
+      logger.warn("Auth integrations are unavailable, unable to synthesize speech");
       return null;
     }
 
@@ -121,9 +104,9 @@ export const text = {
             "User-Agent": gcp.userAgent,
           },
         });
-      return response.data?.audioContent;
+      return response.data?.audioContent ?? null;
     } catch (err) {
-      logger.exception(`Failed to synthesize speech, code ${(err as AxiosError)?.code ?? "unknown"}`, err as Error);
+      logger.errorEx(`Failed to synthesize speech (code ${(err as AxiosError).code})`, err as Error);
     }
     return null;
   },

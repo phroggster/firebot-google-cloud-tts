@@ -32,6 +32,7 @@ module.exports = {
     minimizer: [
       new TerserPlugin({
         terserOptions: {
+          // eslint-disable-next-line camelcase
           keep_fnames: /main/,
           mangle: true,
           format: {

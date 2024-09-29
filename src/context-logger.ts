@@ -1,31 +1,44 @@
-import { modules } from "./main";
+import { ScriptModules } from "@crowbartools/firebot-custom-scripts-types";
+import { Logger } from "@crowbartools/firebot-custom-scripts-types/types/modules/logger";
 
-const rootName = "gcptts";
+import customPlugin from "./main";
 
-export class ContextLogger {
-  private readonly _context: string;
+export class ContextLogger implements Logger {
+  private readonly _ctx: string;
+  private readonly _logger: ScriptModules["logger"] | null;
 
-  constructor(context: string) {
-    this._context = context;
+  constructor(context: string, modules?: ScriptModules) {
+    this._ctx = context;
+    if (modules && modules.logger) {
+      this._logger = modules.logger;
+    } else {
+      try {
+        this._logger = customPlugin.logger;
+      } catch {
+        this._logger = null;
+      }
+    }
   }
 
-  debug(msg: string, ...args: unknown[]) {
-    modules?.logger.debug(`${rootName}.${this._context}: ${msg}`, args);
+  debug(logMessage: string, ...args: unknown[]) {
+    this._logger?.debug(`${this._ctx}: ${logMessage}`, args);
   }
-
-  info(msg: string, ...args: unknown[]) {
-    modules?.logger.info(`${rootName}.${this._context}: ${msg}`, args);
+  info(logMessage: string, ...args: unknown[]) {
+    this._logger?.info(`${this._ctx}: ${logMessage}`, args);
   }
-
-  warn(msg: string, ...args: unknown[]) {
-    modules?.logger.warn(`${rootName}.${this._context}: ${msg}`, args);
+  warn(logMessage: string, ...args: unknown[]) {
+    this._logger?.warn(`${this._ctx}: ${logMessage}`, args);
   }
-
-  error(msg: string, ...args: unknown[]) {
-    modules?.logger.error(`${rootName}.${this._context}: ${msg}`, args);
+  error(logMessage: string, ...args: unknown[]) {
+    this._logger?.error(`${this._ctx}: ${logMessage}`, args);
   }
-
-  exception(msg: string, error: Error, ...args: unknown[]) {
-    modules?.logger.error(`${rootName}.${this._context} ${msg}: ${(error.message || "unknown error")}`, args);
+  infoEx(logMessage: string, err: Error, ...args: unknown[]) {
+    this._logger?.info(`${this._ctx}: ${logMessage} ${err.message}`, args);
+  }
+  warnEx(logMessage: string, err: Error, ...args: unknown[]) {
+    this._logger?.warn(`${this._ctx}: ${logMessage} ${err.message}`, args);
+  }
+  errorEx(logMessage: string, err: Error, ...args: unknown[]) {
+    this._logger?.error(`${this._ctx}: ${logMessage} ${err.message}`, args);
   }
 }
