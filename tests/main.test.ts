@@ -1,4 +1,7 @@
-// import { RunRequest, ScriptModules } from "@crowbartools/firebot-custom-scripts-types";
+// import {
+//   RunRequest,
+//   ScriptModules
+// } from "@crowbartools/firebot-custom-scripts-types";
 // import { ArgumentsOf } from "ts-jest/dist/utils/testing";
 // import pkgJson from "../package.json";
 import customScript from "../src/main";

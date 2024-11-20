@@ -3,48 +3,62 @@ import {
   IntegrationDefinition,
   IntegrationData,
   IntegrationEvents,
-  ScriptModules,
 } from "@crowbartools/firebot-custom-scripts-types";
-import { FirebotParams } from "@crowbartools/firebot-custom-scripts-types/types/modules/firebot-parameters";
 import { TypedEmitter } from "tiny-typed-emitter";
 
-import { BetterIntegrationController} from "./better-integrations";
+import { BetterIntegrationController } from "./better-integrations";
 import consts from "../../consts";
 import { ContextLogger } from "../../context-logger";
+import customPlugin from "../../main";
+import { BaseGcpIntegrationParams } from "../../types";
 
-interface ApiKeyParams extends FirebotParams {
+// The API Key Firebot to Google Cloud Platform integration.
+//
+// I strongly suggest adding your ISP's IP address range(s) to the "IP address
+// restrictions block", or making use of the referrer and authorized web sites,
+// and setting APIs solely to: ["Cloud Text-to-Speech", "Google Cloud APIs"] at
+// https://console.cloud.google.com/apis/credentials
+//
+// API requests using this integration will add a
+// "key={API_KEY}" query parameter to https requests.
+
+interface Params extends BaseGcpIntegrationParams {
   connection: {
-    /**
-     * Optional. An HTTP-referer [sic] to supply with web requests from this integration. This can enable tighter
-     * control of accepted credentials, but requires a bunch of setup to enable in the GCP console.
+    /** Optional, maybe required for "Web application" OAuth flows. An HTTP
+     * referer [*sic*] header can limit requests accepted from the credentials.
+     * This can enable some tighter control of credentials over the "Desktop
+     * application" OAuth flow.
      */
     referrer?: string;
-    /**
-     * Optional. An user-agent string to append onto the "Firebot/{fb version} firebot-gcp-tts/{plugin version}" that
-     * we supply by default. User agents aren't seemingly tracked in the GCP text-to-speech API by default, unless you
-     * hook up additional monitoring APIs in the GCP console or perhaps do long-form TTS requests.
+    /** Optional. An user-agent string to append onto the "Firebot/{fb version}
+     * firebot-gcp-tts/{plugin version}" that is supplied. User agents aren't
+     * seemingly tracked in the GCP text-to-speech API by default, unless you
+     * hook up additional monitoring APIs in the GCP console, or perhaps do
+     * long-form TTS requests.
      *
-     * This does not add any additional security, it adds *at best* client instance billing isolation.
+     * This does not add any additional security, it adds *at best* client
+     * instance billing isolation.
      */
     userAgent?: string;
   };
-}
+};
 
-const integrationDefinition: IntegrationDefinition<ApiKeyParams> = {
+const integrationDefinition: IntegrationDefinition<Params> = {
   id: consts.APIKEY_INTEGRATION_ID,
-  name: "Google Cloud Platform ApiKey",
-  description: "A third-party integration for the Google Cloud Platform utilizing an API key, for use with the Google Cloud TTS revised effects",
+  name: "Google Cloud Platform",
+  description: "Enables Google Cloud Platform Text-To-Speech services.",
   connectionToggle: true,
   linkType: "id",
   idDetails: {
     steps: `
-            1. Visit the [Google Cloud Platform Credentials](https://console.cloud.google.com/apis/credentials) page.
-            2. Switch to or verify that you're operating within your preferred Google Cloud project.
-            3. Either:
-              - Click <ins>SHOW KEY</ins> on a pre-existing API Key, ***OR*** . . .
-              - Click <ins>+ CREATE CREDENTIALS</ins> at the top to create a new key.
-            4. Paste the API Key below.
-        `,
+  1. Visit the [Google Cloud Platform Credentials](https://console.cloud.google.com/apis/credentials) page.
+  2. Verify that you're looking at the *correct* Google Cloud project.
+  3. Either:
+    - Click <ins>SHOW KEY</ins> on a pre-existing API Key, ***OR*** . . .
+    - Click <ins>+ CREATE CREDENTIALS</ins> at the top to create a new key.
+  4. Specify the the minimum-allowable IP addresses or websites, and APIs.
+  5. Paste the API Key below.
+    `,
   },
   settingCategories: {
     connection: {
@@ -53,13 +67,16 @@ const integrationDefinition: IntegrationDefinition<ApiKeyParams> = {
       settings: {
         referrer: {
           title: "HTTP Referrer",
-          description: `(Optional) An HTTP-referer [sic] header to send along. This can (at best) enable billing isolation per client instance.`,
+          description: "(Optional) An HTTP-referer header to send along. This\
+ can be used to mimic an authorized website.",
           type: "string",
           default: "",
         },
         userAgent: {
           title: "User Agent",
-          description: `(Optional) An user-agent string to append to the end of the "Firebot/5.x.y firebot-gcp-tts/${consts.PLUGIN_VERSION}" user-agent that is sent out by default.`,
+          description: `(Optional) An user-agent string to append to the end of\
+ the "Firebot/x.y.z firebot-gcp-tts/${consts.PLUGIN_VERSION}" user-agent that\
+ is sent by default.`,
           type: "string",
           default: "",
         },
@@ -77,108 +94,104 @@ interface ApiKeyIntegrationEvents extends IntegrationEvents {
 
 class IntegrationEventEmitter extends TypedEmitter<ApiKeyIntegrationEvents> { };
 
-class ApikeyIntegrationController extends IntegrationEventEmitter implements BetterIntegrationController<ApiKeyParams> {
+class ApikeyIntegrationController
+  extends IntegrationEventEmitter
+  implements BetterIntegrationController<Params>
+  // eslint-disable-next-line brace-style
+{
   connected = false;
   private _isConfigured = false;
-  // We can't actually unregister any integrations when a third-party script is unloaded...
-  private _isScriptLoaded = false;
 
-  constructor(modules: ScriptModules) {
-    super();
-    modules.frontendCommunicator.on("gcpttsIsApikeyIntegrationConfigured",
-      () => {
-        return this._isConfigured;
-      });
-  }
-
-  /** Returns a value indicating whether or not the integrationData is considered valid. */
-  private static _checkConfig(integrationData?: IntegrationData<ApiKeyParams>): boolean {
-    return integrationData != null && integrationData.accountId != null && integrationData.accountId.length >= 16;
+  /** Returns a value indicating whether or not the integrationData is
+   * considered valid.
+   */
+  private static _checkConfig(
+    integrationData?: IntegrationData<Params>,
+  ) : boolean {
+    return integrationData != null
+      && integrationData.accountId != null
+      && integrationData.accountId.length >= 16;
   };
 
+  private _setConfigured(isConfigured: boolean): boolean {
+    this._isConfigured = isConfigured;
+    if (!isConfigured) {
+      this._setConnected(false);
+    }
+    return this._isConfigured;
+  };
   private _setConnected(wantsConnection: boolean): boolean {
+    const wasConnected = this.connected;
     const willBeConnected = wantsConnection && this._isConfigured;
 
-    if (!this.connected && wantsConnection && this._isConfigured) {
-      this.connected = willBeConnected;
-      this.emit("connected", integrationDefinition.id);
-    } else if (this.connected && (!wantsConnection || !this._isConfigured)) {
-      this.connected = willBeConnected;
-      this.emit("disconnected", integrationDefinition.id);
+    this.connected = willBeConnected;
+
+    if (wasConnected !== willBeConnected) {
+      if (willBeConnected) {
+        this.emit("connected", integrationDefinition.id);
+      } else {
+        this.emit("disconnected", integrationDefinition.id);
+      }
     }
 
     return this.connected;
   };
-  private _setupConnection(integrationData?: IntegrationData<ApiKeyParams>): boolean {
-    if (integrationData == null || integrationData.accountId == null || integrationData.accountId.length < 16) {
-      this._isConfigured = false;
-      this._setConnected(false);
-    } else {
-      this._isConfigured = true;
-    }
-    return this._isConfigured;
+  private _setupConnection(integrationData?: IntegrationData<Params>): boolean {
+    return this._setConfigured(ApikeyIntegrationController._checkConfig(
+      integrationData));
   };
 
-  init(_linked: boolean, _integrationData: IntegrationData<ApiKeyParams>): void | PromiseLike<void> {
+  init(
+    linked: boolean,
+    integrationData: IntegrationData<Params>,
+  ): void | PromiseLike<void> {
+    // TODO: undebugging
+    const logger = new ContextLogger("gcptts.apikey.init");
+    logger.debug("Initializing integration", { linked, integrationData });
+
+    this._setupConnection(integrationData);
   };
 
-  connect(integrationData: IntegrationData<ApiKeyParams>): void | PromiseLike<void> {
-    const logger = new ContextLogger("gcptts.integration.apiKey");
-    if (!this._setupConnection(integrationData)) {
-      logger.warn("Trying to connect() without being configured");
-      this._setConnected(false);
-      return;
-    }
-
-    if (this._setConnected(true)) {
-      logger.debug("Connected to the Google Cloud Platform integration");
-    } else {
-      logger.warn("Failed to connect to the Google Cloud Platform integration");
+  connect(
+    integrationData: IntegrationData<Params>,
+  ): void | PromiseLike<void> {
+    if (this._setupConnection(integrationData)) {
+      this._setConnected(true);
     }
   };
+
   disconnect(): void | PromiseLike<void> {
     this._setConnected(false);
-    const logger = new ContextLogger("gcptts.integration.apikey.disconnect");
-    logger.debug("gcptts.integration.apiKey: Disconnected Google Cloud Platform integration");
   };
+
   isConfigured(): boolean {
     return this._isConfigured;
   };
+
   link(): void | PromiseLike<void> {
-    const logger = new ContextLogger("gcptts.integration.apikey.link");
+    const logger = new ContextLogger("gcptts.apikey.link");
     logger.debug("linked Google Cloud Platform integration");
   };
+
   unlink(): void | PromiseLike<void> {
     this._setConnected(false);
-    const logger = new ContextLogger("gcptts.integration.apikey.unlink");
+    const logger = new ContextLogger("gcptts.apikey.unlink");
     logger.debug("Unlinked Google Cloud Platform integration");
   };
-  onUserSettingsUpdate(integrationData: IntegrationData<ApiKeyParams>): void | PromiseLike<void> {
-    const logger = new ContextLogger("gcptts.integration.apikey.settingsUpdate");
+
+  onUserSettingsUpdate(
+    integrationData: IntegrationData<Params>,
+  ): void | PromiseLike<void> {
+    const logger = new ContextLogger("gcptts.apikey.settingsUpdate");
     logger.debug("user settings updated");
+
     this._setupConnection(integrationData);
     this.emit("settings-update", integrationDefinition.id, integrationData);
   };
 };
 
-let apiKeyController: ApikeyIntegrationController | null = null;
-export default {
-  initialize: (modules: ScriptModules) => {
-    apiKeyController ??= new ApikeyIntegrationController(modules);
-  },
-
-  integration(): Integration<ApiKeyParams> {
-    if (!apiKeyController) {
-      throw new Error("Unable to get integration, it has not been initialized");
-    }
-    return {
-      definition: integrationDefinition,
-      integration: apiKeyController,
-    };
-  }
+const apikeyController = new ApikeyIntegrationController();
+export default <Integration<Params>> {
+  definition: integrationDefinition,
+  integration: apikeyController,
 };
-
-// export default {
-//   definition: integrationDefinition,
-//   integration: customPlugin.modules.integrationManager.getIntegrationById(integrationDefinition.id)?.integration as ApikeyIntegrationController ?? new ApikeyIntegrationController(),
-// };

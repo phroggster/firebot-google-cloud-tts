@@ -2,6 +2,7 @@
 
 import globals from "globals";
 import pluginJs from "@eslint/js";
+import stylistic from "@stylistic/eslint-plugin";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
@@ -15,80 +16,170 @@ export default tseslint.config(
         ...globals.node,
       },
     },
+    plugins: {
+      "@stylistic": stylistic,
+    },
     rules: {
       // Deviations from < https://eslint.org/docs/rules/#best-practices >
-      "no-console": "error", // No console logging
-      "eqeqeq": ["warn", "smart"], // No coersion unless comparing against null
-      "guard-for-in": "warn", // require an if statement with for-in loops
-      "no-else-return": "warn", // no 'if () { return } else { ... }
-      "no-eval": "warn", // no eval()
-      "no-floating-decimal": "warn", // no trailing decimals after numbers
-      "no-lone-blocks": "warn", // see: https://eslint.org/docs/rules/no-lone-blocks
-      "no-multi-spaces": "warn", // no repeating spaces
-      "no-throw-literal": "warn", // must throw an error instance
-      "no-unused-expressions": "warn", // see: https://eslint.org/docs/rules/no-unused-expressions#disallow-unused-expressions-no-unused-expressions
-      "no-with": "warn", // no with statements
-      "wrap-iife": ["warn", "any"], // immediately called functions must be wrapped in ()'s
+      // No console logging
+      "no-console": "error",
+      // No coercion unless comparing against null
+      "eqeqeq": ["warn", "smart"],
+      // require an if statement with for-in loops
+      "guard-for-in": "warn",
+      // no 'if () { return } else { ... }
+      "no-else-return": "warn",
+      // no eval()
+      "no-eval": "warn",
+      // no trailing decimals after numbers
+      "no-floating-decimal": "warn",
+      // see: https://eslint.org/docs/rules/no-lone-blocks
+      "no-lone-blocks": "warn",
+      // no repeating spaces
+      "no-multi-spaces": "warn",
+      // must throw an error instance
+      "no-throw-literal": "warn",
+      // see: https://eslint.org/docs/rules/no-unused-expressions#disallow-unused-expressions-no-unused-expressions
+      "no-unused-expressions": "warn",
+      // no with statements
+      "no-with": "warn",
+      // immediately called functions must be wrapped in ()'s
+      "wrap-iife": ["warn", "any"],
       "no-async-promise-executor": "off",
       "no-prototype-builtins": "off",
 
       // Deviation from < https://eslint.org/docs/rules/#strict-mode >
-      "strict": "off", // disabled b/c typescript
+      // disabled b/c typescript
+      "strict": "off",
 
       // Deviation from < https://eslint.org/docs/rules/#variables >
-      "no-use-before-define": "warn", // require vars to be defined before use
+      // require vars to be defined before use
+      "no-use-before-define": "warn",
       "prefer-const": "warn",
 
       // Deviation from < https://eslint.org/docs/rules/#stylistic-issues >
-      "arrow-parens": ["warn", "as-needed", { requireForBlockBody: true }], // Parentheses around arrow function parameters
-      "array-bracket-spacing": "warn", // Spaces around array []'s
-      "block-spacing": "warn", // {}'s must have whitespace around them
-      "brace-style": "warn", // See: https://eslint.org/docs/rules/brace-style#require-brace-style-brace-style
-      "camelcase": "warn", // useCamelCasePleaseKThanks
-      "comma-dangle": ["warn", "always-multiline"], // No trailing commas in single-line, warn when missing in multiline
-      "comma-spacing": "warn", // Require space after commas
-      "comma-style": "warn", // See: https://eslint.org/docs/rules/comma-style
-      "computed-property-spacing": "warn", // No whitespace when using object[thing]
-      "curly": "warn", // Must wrap blocks with {}
-      "indent": "off", // Superseded by TS
-      "key-spacing": ["warn", { mode: "strict" }], // Exactly one space after object key colons
-      "keyword-spacing": "warn", // Spaces around keywords
-      "new-cap": "warn", // Constructors must start with capital letter
-      "no-trailing-spaces": "warn", // no trailing spaces
-      "semi": "warn", // semi-colons required
-      "semi-spacing": ["warn", { before: false, after: true }], // space after semi-colon, no space before
-      "semi-style": "warn", // See: https://eslint.org/docs/rules/semi-style
-      "space-before-blocks": "warn", // whitespace required before and after {}
-      "space-in-parens": ["warn", "never"], // See: https://eslint.org/docs/rules/space-in-parens
-      "space-infix-ops": "warn", // Spaces required around operators
-      "space-unary-ops": "warn", // See: https://eslint.org/docs/rules/space-unary-ops
-      "switch-colon-spacing": "warn", // Spaces after case colon
+      // Parentheses around arrow function parameters
+      "arrow-parens": [
+        "warn",
+        "as-needed",
+        { requireForBlockBody: true },
+      ],
+      // Spaces around array []'s
+      "array-bracket-spacing": "warn",
+      // {}'s must have whitespace around them
+      "block-spacing": "warn",
+      // See: https://eslint.org/docs/rules/brace-style#require-brace-style-brace-style
+      "brace-style": "warn",
+      // useCamelCasePleaseKThanks
+      "camelcase": "warn",
+      // No trailing commas in single-line, warn when missing in multiline
+      "comma-dangle": ["warn", "always-multiline"],
+      // Require space after commas
+      "comma-spacing": "warn",
+      // See: https://eslint.org/docs/rules/comma-style
+      "comma-style": "warn",
+      // No whitespace when using object[thing]
+      "computed-property-spacing": "warn",
+      // Must wrap blocks with {}
+      "curly": "warn",
+      // Superseded by TS
+      "indent": "off",
+      // Exactly one space after object key colons
+      "key-spacing": [
+        "warn",
+        { mode: "strict" },
+      ],
+      // Spaces around keywords
+      "keyword-spacing": "warn",
+      // Constructors must start with capital letter
+      "new-cap": "warn",
+      // no trailing spaces
+      "no-trailing-spaces": "warn",
+      // semi-colons required
+      "semi": "warn",
+      // space after semi-colon, no space before
+      "semi-spacing": [
+        "warn",
+        {
+          before: false,
+          after: true,
+        }
+      ],
+      // See: https://eslint.org/docs/rules/semi-style
+      "semi-style": "warn",
+      // whitespace required before and after {}
+      "space-before-blocks": "warn",
+      // See: https://eslint.org/docs/rules/space-in-parens
+      "space-in-parens": ["warn", "never"],
+      // Spaces required around operators
+      "space-infix-ops": "warn",
+      // See: https://eslint.org/docs/rules/space-unary-ops
+      "space-unary-ops": "warn",
+      // Spaces after case colon
+      "switch-colon-spacing": "warn",
 
-      // Deviation from < https://eslint.org/docs/rules/#ecmascript-6 >
-      "arrow-spacing": "warn", // Spaces required around fat-arrow function's "=>"
-      "no-confusing-arrow": "warn", // Don't use arrows functions in conditions
-      "no-var": "warn", // Use let/const instead of var
+      // Deviations from < https://eslint.org/docs/rules/#ecmascript-6 >
+      // Spaces required around fat-arrow function's "=>"
+      "arrow-spacing": "warn",
+      // Don't use arrows functions in conditions
+      "no-confusing-arrow": "warn",
+      // Use let/const instead of var
+      "no-var": "warn",
 
       // Other deviations
-      "no-unused-vars": "off", // @typescript-eslint handles this better
-      "prefer-template": "warn", // Use template strings instead of + concat
-      "template-curly-spacing": ["warn", "never"],
-      "no-useless-concat": "error", // no concat'ing literal strings
-      "no-empty": ["error", { allowEmptyCatch: true }],
       "no-debugger": "warn",
+      "no-empty": ["error", { allowEmptyCatch: true }],
+      // @typescript-eslint handles this better
+      "no-unused-vars": "off",
+      // no concat'ing literal strings
+      "no-useless-concat": "error",
+      // warn about todo comments
       "no-warning-comments": [
         "warn",
-        { terms: ["todo", "to do", "fix", "fixme", "fix me", "need"], location: "start" },
-      ], // warn about todo comments
+        {
+          location: "start",
+          terms: [
+            "todo",
+            "to do",
+            "fix",
+            "fixme",
+            "fix me",
+            "need",
+          ],
+        },
+      ],
+      // Use template strings instead of + concat
+      "prefer-template": "warn",
+      "template-curly-spacing": ["warn", "never"],
 
-      // typescript
+      // @stylistic
+      "@stylistic/indent": [
+        "warn", 2,
+      ],
+      "@stylistic/max-len": [
+        "warn",
+        {
+          "code": 80,
+          "ignoreComments": false,
+          "ignoreUrls": true,
+        },
+      ],
+
+      // @typescript-eslint
       "@typescript-eslint/ban-ts-comment": "off",
       "@typescript-eslint/ban-types": "warn",
+      // Warn all unused, unless arg comes before a later used one or arg name
+      // starts with an underscore
       "@typescript-eslint/no-unused-vars": [
         "warn",
-        { "args": "after-used", "argsIgnorePattern": "^_", "vars": "all" },
-      ], // warn all unused, unless param comes before a later used one or param name starts with an '_'
-      "@typescript-eslint/indent": ["warn", 2],
+        {
+          "args": "after-used",
+          "argsIgnorePattern": "^_",
+          "vars": "all",
+        },
+      ],
+      // Superseded by stylistic
+      "@typescript-eslint/indent": "off",
     },
   },
 );

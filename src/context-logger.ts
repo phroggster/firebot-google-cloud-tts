@@ -1,5 +1,9 @@
-import { ScriptModules } from "@crowbartools/firebot-custom-scripts-types";
-import { Logger } from "@crowbartools/firebot-custom-scripts-types/types/modules/logger";
+import {
+  ScriptModules,
+} from "@crowbartools/firebot-custom-scripts-types";
+import {
+  Logger,
+} from "@crowbartools/firebot-custom-scripts-types/types/modules/logger";
 
 import customPlugin from "./main";
 

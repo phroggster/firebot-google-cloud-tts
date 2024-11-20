@@ -1,102 +1,175 @@
-import { CustomScriptManifest, Firebot, RunRequest, ScriptModules, ScriptReturnObject } from "@crowbartools/firebot-custom-scripts-types";
-import { ParametersConfig } from "@crowbartools/firebot-custom-scripts-types/types/modules/firebot-parameters";
-import { FirebotSettings } from "@crowbartools/firebot-custom-scripts-types/types/settings";
+import {
+  CustomScriptManifest,
+  Firebot,
+  RunRequest,
+  ScriptModules,
+  ScriptReturnObject,
+} from "@crowbartools/firebot-custom-scripts-types";
+import {
+  ParametersConfig,
+// eslint-disable-next-line @stylistic/max-len
+} from "@crowbartools/firebot-custom-scripts-types/types/modules/firebot-parameters";
+import {
+  FirebotSettings,
+} from "@crowbartools/firebot-custom-scripts-types/types/settings";
 import { TypedEmitter } from "tiny-typed-emitter";
+
+import firebotApi from "./firebot";
+import { EffectRunner } from "./firebot/effects/better-effects";
+import updateVoicesEffect from "./firebot/effects/update-voices";
+import updateCheckEffect from "./firebot/effects/plugin-update-check";
+import {
+  BetterIntegrationManager,
+} from "./firebot/integrations/better-integrations";
 
 import consts from "./consts";
 import { ContextLogger } from "./context-logger";
 import { DataProvider } from "./data-provider";
-import firebot from "./firebot";
-import updateVoicesEffect from "./firebot/effects/update-voices";
-import gcp from "./gcp";
-import integrations from "./firebot/integrations";
-
-interface PluginParams extends Record<string, unknown> {
-  /** How often should the script check for new updates. */
-  pluginUpdateCheckInterval: "Never" | "OnStart" | "Daily" | "TwoDays" | "ThreeDays" | "Weekly" | "TwoWeeks" | "Monthly";
-  /** How often should the script check for voice list updates. */
-  voiceUpdateCheckInterval: "Never" | "OnStart" | "Daily" | "TwoDays" | "ThreeDays" | "Weekly" | "TwoWeeks" | "Monthly";
-};
+import googleCloudApi from "./google-cloud";
+import { defaultParams, SettingsProvider } from "./settings-provider";
+import { PluginParams, updateIntervalValueNames } from "./types";
+import { UpdateManager } from "./update-manager";
+import { EventManager } from "./firebot/events/better-events";
 
 interface CustomPluginEvents<TParams extends Record<string, unknown>> {
-  loading: (runRequest: RunRequest<TParams>) => void;
-  loaded: (params: TParams) => void;
-  paramsUpdating: (oldParams: TParams, newParams: TParams) => void;
   paramsUpdated: (newParams: TParams) => void;
-  unloading: () => void;
-  unloaded: () => void;
+  stopped: () => void;
 };
 
-const defaultUpdateInterval = "Weekly";
+class CustomPlugin
+  extends TypedEmitter<CustomPluginEvents<PluginParams>>
+  implements Firebot.CustomScript<PluginParams>
+// eslint-disable-next-line brace-style
+{
+  private _dataProvider?: DataProvider = undefined;
+  private _modules?: ScriptModules = undefined;
+  private _settings?: SettingsProvider = undefined;
+  private _updateManager?: UpdateManager = undefined;
 
-class CustomPlugin extends TypedEmitter<CustomPluginEvents<PluginParams>> implements Firebot.CustomScript<PluginParams> {
-  private _dataProvider?: DataProvider;
-  private _settings?: FirebotSettings;
-  private _modules?: ScriptModules;
-  private _pluginParams: PluginParams;
-
-  constructor() {
-    super();
-    this._pluginParams = <PluginParams>{
-      pluginUpdateCheckInterval: defaultUpdateInterval,
-      voiceUpdateCheckInterval: defaultUpdateInterval,
-    };
-  }
-
+  /** Will either return the dataProvider module, or throw an error if it's not
+   * available.
+   */
   get dataProvider(): DataProvider | never {
     if (!this._dataProvider) {
       throw new Error("dataProvider is unavailable}");
     }
     return this._dataProvider;
   }
+  /** Will either get the effectRunner module, or throw an error if it's not
+   * available.
+   */
+  get effectRunner(): EffectRunner | never {
+    if (!this._modules) {
+      throw new Error("effectRunner is unavailable");
+    }
+    return this._modules.effectRunner as EffectRunner;
+  }
+  /** Will either get the eventManager module, or throw an error if it's not
+   * available.
+   */
+  get eventManager(): EventManager | never {
+    if (!this._modules) {
+      throw new Error("eventManager is unavailable");
+    }
+    return this._modules.eventManager as EventManager;
+  }
+  /** Will either return the settings module, or throw an error if it's not
+   * available.
+   */
   get firebotSettings(): FirebotSettings | never {
     if (!this._settings) {
       throw new Error("firebotSettings is unavailable");
     }
-    return this._settings;
+    return this._settings.firebotSettings;
   }
-  get pluginParams(): PluginParams | never {
-    if (!this._pluginParams) {
-      throw new Error("pluginParams is not available");
-    }
-    return this._pluginParams;
-  }
-
+  /** Will either return the frontendCommunicator module, or throw an error if
+   * it's not available.
+   */
   get frontendCommunicator(): ScriptModules["frontendCommunicator"] | never {
     if (!this._modules) {
       throw new Error("frontendCommunicator is unavailable");
     }
     return this._modules.frontendCommunicator;
   }
-  get integrationManager(): ScriptModules["integrationManager"] | never {
+  /** Will either return the integrationManager module, or throw an error if
+   * it's not available.
+   */
+  get integrationManager(): BetterIntegrationManager | never {
     if (!this._modules) {
       throw new Error("integrationManager is unavailable");
     }
-    return this._modules.integrationManager;
+    return this._modules.integrationManager as BetterIntegrationManager;
   }
+  /** Will either return the default logger module, or throw an error if it's
+   * not available.
+   */
   get logger(): ScriptModules["logger"] | never {
     if (!this._modules) {
       throw new Error("logger is unavailable");
     }
     return this._modules.logger;
   }
+  /** Will either return the path module, or throw an error if it's not
+   * available.
+   */
   get path(): ScriptModules["path"] | never {
     if (!this._modules) {
       throw new Error("path is unavailable");
     }
     return this._modules.path;
   }
+  /** Will either return the custom plugin parameters, or throw an error if
+   * it's not available.
+   */
+  get pluginParams(): PluginParams | never {
+    if (!this._settings?.params) {
+      throw new Error("pluginParams is not available");
+    }
+    return this._settings.params;
+  }
+  /** Will either return the resourceTokenManager module, or throw an error if
+   * it's not available.
+   */
   get resourceTokenManager(): ScriptModules["resourceTokenManager"] | never {
     if (!this._modules) {
       throw new Error("resourceTokenManager is unavailable");
     }
     return this._modules.resourceTokenManager;
   }
+  /** Will either return the scriptModules collection, or throw an error if it's
+   * not available.
+   */
+  get scriptModules(): ScriptModules | never {
+    if (!this._modules) {
+      throw new Error("scriptModules is unavailable");
+    }
+    return this._modules;
+  }
+  /** Will either return the settingsProvider module, or throw an error if it's
+   * not available.
+   */
+  get settingsProvider(): SettingsProvider | never {
+    if (!this._settings) {
+      throw new Error("settingsProvider in unavailable");
+    }
+    return this._settings;
+  }
+  /** Will either return the updateManager module, or throw an error if it's
+   * not available.
+   */
+  get updateManager(): UpdateManager {
+    if (!this._updateManager) {
+      throw new Error("updateManager is unavailable");
+    }
+    return this._updateManager;
+  }
 
+  /** Gets a manifest describing this custom plugin. */
   getScriptManifest(): CustomScriptManifest {
     return {
       author: "phroggie",
-      description: "Adds the Google Cloud Text-To-Speech (revised) effects for high-quality speech synthesis",
+      description: "Adds Google Cloud Text-To-Speech (revised) effects for\
+ high-quality speech synthesis",
       firebotVersion: "5",
       name: "Google Cloud TTS (revised)",
       startupOnly: true,
@@ -105,80 +178,110 @@ class CustomPlugin extends TypedEmitter<CustomPluginEvents<PluginParams>> implem
     };
   }
 
+  /** Gets the parameter definitions for this custom plugin. */
   getDefaultParameters(): ParametersConfig<PluginParams> {
     return {
+      autoUpgrade: {
+        title: "Auto Upgrade",
+        // boolean descriptions are useless at the moment...
+        tip: "When enabled, plugin updates will be automatically installed\
+ as they become available. You will have to manually restart Firebot to\
+ complete an upgrade.",
+        type: "boolean",
+        default: defaultParams.autoUpgrade,
+      },
       pluginUpdateCheckInterval: {
         title: "Update Check Interval",
         description: "How frequently the plugin should check for updates.",
-        // TODO: insert effect name here
-        tip: `You can use the "{insert effect name here}" effect to check for plugin updates on-demand, or let the plugin do it automatically on a regular schedule.`,
+        tip: `You can use the "**${updateCheckEffect.definition.name}**"\
+ effect to manually check for updates on-demand, or let the plugin do it\
+ automatically on a regular schedule.`,
         type: "enum",
-        options: ["Never", "OnStart", "Daily", "TwoDays", "ThreeDays", "Weekly", "TwoWeeks", "Monthly"],
-        default: defaultUpdateInterval,
+        options: updateIntervalValueNames,
+        default: defaultParams.pluginUpdateCheckInterval,
         searchable: false,
       },
-      voiceUpdateCheckInterval: {
-        title: "Voice Updates Interval",
-        description: "How frequently the plugin should refresh the TTS voice list.",
-        tip: `You can use the "${updateVoicesEffect.definition.name}" effect to update voices on-demand, or let the script do it automatically on a regular schedule.`,
+      voicesUpdateInterval: {
+        title: "Voices Update Interval",
+        description: "How frequently the plugin should refresh the TTS voices\
+ list.",
+        tip: `You can use the "**${updateVoicesEffect.definition.name}**"\
+ effect to update voices on-demand, or let the plugin do it automatically\
+ on a regular schedule.`,
         type: "enum",
-        options: ["Never", "OnStart", "Daily", "TwoDays", "ThreeDays", "Weekly", "TwoWeeks", "Monthly"],
-        default: defaultUpdateInterval,
+        options: updateIntervalValueNames,
+        default: defaultParams.voicesUpdateInterval,
         searchable: false,
+        showBottomHr: true,
       },
     };
   }
 
+  /** The user has changed the plugin's parameters. */
   parametersUpdated?(params: PluginParams): void {
-    this.emit("paramsUpdating", this._pluginParams, params);
-    this._pluginParams = params;
     this.emit("paramsUpdated", params);
   }
 
-  run(runRequest: RunRequest<PluginParams>): ScriptReturnObject /* | Promise<ScriptReturnObject> */ {
-    this._settings = runRequest.firebot.settings;
-    this._modules = runRequest.modules;
+  /** Kick off "the show." */
+  run(runRequest: RunRequest<PluginParams>): ScriptReturnObject {
+    const { modules } = runRequest;
+    this._modules = modules;
 
-    const logger = new ContextLogger("gcptts.main.run", runRequest.modules);
-    logger.info("Google TTS revised plugin is starting up, trigger was:", runRequest.trigger);
+    const logger = new ContextLogger("gcptts.run", modules);
+    logger.info("Google TTS revised plugin is initializing");
 
-    this._dataProvider = new DataProvider(SCRIPTS_DIR, runRequest.modules);
-    this._pluginParams = {
-      pluginUpdateCheckInterval: (runRequest.parameters as PluginParams)?.pluginUpdateCheckInterval || defaultUpdateInterval,
-      voiceUpdateCheckInterval: (runRequest.parameters as PluginParams)?.voiceUpdateCheckInterval || defaultUpdateInterval,
-    };
+    this._settings ??= new SettingsProvider(runRequest);
+    this._dataProvider ??= new DataProvider(modules, this._settings);
+    this._updateManager ??= new UpdateManager(this._settings);
 
-    this.emit("loading", runRequest);
-
-    firebot.integrations.forEach((integration) => {
+    let intCount = 0;
+    firebotApi.integrations.forEach((integration) => {
       try {
-        integration.initialize(runRequest.modules);
-        runRequest.modules.integrationManager.registerIntegration(integration.integration());
-        gcp.addIntegration(integration.integration().definition.id);
+        modules.integrationManager.registerIntegration(integration);
+        googleCloudApi.addIntegration(integration.definition.id);
+        intCount++;
+        logger.debug(`Registered "${integration.definition.id}" integration`);
       } catch (err) {
-        logger.warnEx(`Failed to register "${integration.integration().definition.name}" integration. Is it already loaded?`, err as Error, err);
+        logger.warnEx(`Failed to register "${integration.definition.id}"\
+ integration. Is it already loaded?`, err as Error, err);
       }
     });
+    googleCloudApi.init();
+    logger.debug(`Registered ${intCount} integration(s)`);
 
-    firebot.effects.forEach((effect) => {
+    let effCount = 0;
+    firebotApi.effects.forEach((effect) => {
       try {
-        runRequest.modules.effectManager.registerEffect(effect);
+        modules.effectManager.registerEffect(effect);
+        effCount++;
+        logger.debug(`Registered "${effect.definition.id}" effect`);
       } catch (err) {
-        logger.warnEx(`Failed to register "${effect.definition.name}" effect`, err as Error, err);
+        logger.warnEx(`Failed to register "${effect.definition.name}" effect`,
+          err as Error, err);
       }
     });
-    firebot.variables.forEach((variable) => {
+    logger.debug(`Registered ${effCount} effect(s)`);
+
+    try {
+      modules.eventManager.registerEventSource(firebotApi.events);
+      logger.debug(`Registered ${firebotApi.events.events.length} events`);
+    } catch (err) {
+      logger.errorEx("Failed to register events", err as Error);
+    }
+
+    let varCount = 0;
+    firebotApi.variables.forEach((variable) => {
       try {
-        runRequest.modules.replaceVariableManager.registerReplaceVariable(variable);
+        modules.replaceVariableManager.registerReplaceVariable(variable);
+        varCount++;
       } catch (err) {
-        logger.warnEx(`Failed to register replacement variable "${variable.definition.handle}`, err as Error, err);
+        logger.warnEx(`Failed to register replacement variable\
+ "${variable.definition.handle}`, err as Error, err);
       }
     });
+    logger.debug(`Registered ${varCount} variable(s)`);
 
-    gcp.userAgent = `Firebot/${runRequest.firebot.version} firebot-google-tts-revised/${consts.PLUGIN_VERSION}`;
-
-    this.emit("loaded", this._pluginParams);
-    logger.info("Google TTS revised plugin has started up");
+    logger.info("The Google TTS revised custom plugin has started up");
 
     return {
       callback: undefined,
@@ -188,15 +291,23 @@ class CustomPlugin extends TypedEmitter<CustomPluginEvents<PluginParams>> implem
     };
   }
 
+  /** Cancel "the show." */
   stop(): void {
     const logger = new ContextLogger("gcptts.stop", this._modules);
-    this.emit("unloading");
 
-    // TODO: `undefined` everything? Can't unload most things. sigh.
-    // Might just be easier to chop up the manager classes where things are registered...
-    logger.info("Stopping plugin");
+    this.emit("stopped");
 
-    this.emit("unloaded");
+    // Might just be easiest to overthrow the various manager classes where
+    // things get registered and unregister them using underhanded tactics?
+
+    // At least undef'ing things will throw errors in the property wrappers...
+    this._dataProvider = undefined;
+    this._modules = undefined;
+    this._settings = undefined;
+    this._updateManager = undefined;
+    logger.info("The Google TTS revised custom plugin has been stopped");
+
+    this.removeAllListeners("paramsUpdated");
   }
 }
 

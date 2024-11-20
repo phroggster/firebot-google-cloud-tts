@@ -1,8 +1,8 @@
 import apikeyIntegration from "./apikey";
-// import oauthIntegration from "./oauth";
+import oauthIntegration from "./oauth";
 
 export default [
   apikeyIntegration,
-  // TODO: enable this once it's actually been implemented
+  // TODO: get OAuth functional.
   // oauthIntegration,
 ];

@@ -5,7 +5,7 @@ Use Google Cloud's Text-to-Speech service in Firebot to have incredible TTS qual
 
 Technically this is a paid service. However, each month Google will give you between 100k to 4M free characters of TTS, in each of six pricing categories (terms *may* vary by region). See their [Text-to-Speech pricing](https://cloud.google.com/text-to-speech/pricing) page for more information. Be advised, the Journey voices are no longer marked as experimental, and will apparantly be getting billed out again.
 
-Looking to recreate the voice of A.D.A (Artificial Directory and Assistant) from Satisfactory? Choose `en-US-Wavenet-C` and adjust the Pitch to `-0.5` and Speed to `0.9` (Note: voice effects were disabled in the most recent update. They should return soon).
+Looking to recreate the voice of A.D.A (Artificial Directory and Assistant) from Satisfactory? Choose `en-US-Wavenet-C` and adjust the Pitch to `-0.5` and Speed to `0.9`.
 
 ## Prerequisites
 You must have a Google Cloud Account, and a [Google Cloud API Key](https://cloud.google.com/docs/authentication/api-keys#creating_an_api_key) to use this script. The API Key *may* look something like: `AITEwL55bWmT-zZeuiWF8o9EpruWtue7QUhMy05`. Make sure you have your API Key handy, as you'll need it once you install the Script in [Firebot](https://firebot.app/). 
