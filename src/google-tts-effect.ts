@@ -9,6 +9,8 @@ import { tmpDir, wait } from "./utils";
 import voices from "./voices";
 import ng from "angular";
 import { v4 as uuid } from "uuid";
+import * as fs from "fs";
+import * as path from "path";
 
 interface EffectScope extends ng.IScope {
   /** `true` when the voice is guaranteed to utilize a Chirp voice model; `false` when a variable
@@ -45,7 +47,7 @@ export function buildGoogleTtsEffectType(
   settings: FirebotSettings,
   getApiKey: () => string
 ) {
-  const { eventManager, frontendCommunicator, fs, httpServer, path, resourceTokenManager } = modules;
+  const { eventManager, frontendCommunicator, httpServer, resourceTokenManager } = modules;
 
   const googleTtsEffectType: EffectType<EffectModel, never, SynthesisResult> = {
     definition: {
@@ -385,7 +387,7 @@ export function buildGoogleTtsEffectType(
       }
       if (!audioContent) {
         return effectResult(false);
-      } 
+      }
 
       // save audio content to file
       const filePath = path.join(tmpDir, `tts${uuid()}.mp3`);
@@ -397,7 +399,7 @@ export function buildGoogleTtsEffectType(
       let soundDuration: number = undefined;
       try {
         soundDuration = await frontendCommunicator.fireEventAsync<number>(
-          "getSoundDuration", { 
+          "getSoundDuration", {
             format: "mp3",
             path: filePath
           }
